@@ -1,0 +1,12 @@
+[
+  {
+    "name": "Candidate A",
+    "resume": "Python, Machine Learning, NLP, TensorFlow, SQL, Docker, AWS, REST API, Git",
+    "jd": "Python ML engineer with TensorFlow, NLP, Docker, Kubernetes, AWS, CI/CD, SQL"
+  },
+  {
+    "name": "Candidate B",
+    "resume": "React, JavaScript, TypeScript, Node.js, MongoDB, REST API, GraphQL, Docker",
+    "jd": "Full-stack React developer, TypeScript, Node.js, PostgreSQL, Docker, AWS, GraphQL"
+  }
+]

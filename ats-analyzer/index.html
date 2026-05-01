@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ATS Resume Analyzer</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+</head>
+<body>
+  <div class="bg-grid"></div>
+
+  <header>
+    <div class="logo">
+      <span class="logo-icon">⬡</span>
+      <span>ResumeIQ</span>
+    </div>
+    <p class="tagline">AI-Powered ATS Career Coach</p>
+  </header>
+
+  <main>
+    <!-- STEP 1: Job Role -->
+    <section class="card" id="step-role">
+      <div class="step-label">Step 01</div>
+      <h2>Choose Your Target Role</h2>
+      <p class="sub">Select the job role you're applying for. The analysis will be tailored specifically to this role.</p>
+      <div class="role-grid" id="roleGrid"></div>
+      <div class="custom-role-wrap">
+        <input type="text" id="customRole" placeholder="Or type a custom role… e.g. DevOps Engineer" />
+      </div>
+    </section>
+
+    <!-- STEP 2: Upload Resume -->
+    <section class="card" id="step-upload">
+      <div class="step-label">Step 02</div>
+      <h2>Upload Your Resume</h2>
+      <p class="sub">Upload a PDF resume. Text is extracted locally — nothing is sent except to the AI analysis API.</p>
+      <div class="dropzone" id="dropzone">
+        <div class="drop-inner">
+          <span class="drop-icon">📄</span>
+          <p>Drag & drop your PDF here</p>
+          <span>or</span>
+          <label class="btn-upload" for="fileInput">Browse File</label>
+          <input type="file" id="fileInput" accept=".pdf" hidden />
+        </div>
+      </div>
+      <div id="fileInfo" class="file-info hidden"></div>
+      <div id="extractedPreview" class="extracted-preview hidden">
+        <div class="preview-header">
+          <span>Extracted Text Preview</span>
+          <button id="togglePreview">Show ▾</button>
+        </div>
+        <pre id="previewText" class="hidden"></pre>
+      </div>
+    </section>
+
+    <!-- STEP 3: Analyze -->
+    <section class="card" id="step-analyze">
+      <div class="step-label">Step 03</div>
+      <h2>Run ATS Analysis</h2>
+      <p class="sub">Claude AI will analyze your resume against the selected role and return structured, actionable feedback.</p>
+      <button id="analyzeBtn" class="btn-analyze" disabled>
+        <span id="btnText">Analyze Resume →</span>
+        <span id="btnLoader" class="hidden">Analyzing<span class="dots">...</span></span>
+      </button>
+      <div id="errorMsg" class="error-msg hidden"></div>
+    </section>
+
+    <!-- RESULTS -->
+    <section id="resultsSection" class="hidden">
+      <div class="results-header">
+        <h2>Analysis Results</h2>
+        <div id="roleTag" class="role-tag"></div>
+      </div>
+      <div class="results-grid">
+        <div class="result-card strengths">
+          <h3><span class="icon">✦</span> Strengths</h3>
+          <ul id="strengthsList"></ul>
+        </div>
+        <div class="result-card weaknesses">
+          <h3><span class="icon">⚠</span> Weaknesses</h3>
+          <ul id="weaknessesList"></ul>
+        </div>
+        <div class="result-card improvements">
+          <h3><span class="icon">✎</span> Improvements</h3>
+          <ul id="improvementsList"></ul>
+        </div>
+        <div class="result-card skills">
+          <h3><span class="icon">◈</span> Skill Recommendations</h3>
+          <div id="skillsList" class="skill-tags"></div>
+        </div>
+        <div class="result-card projects full-width">
+          <h3><span class="icon">◉</span> Project Suggestions</h3>
+          <div id="projectsList" class="projects-grid"></div>
+        </div>
+      </div>
+      <button id="resetBtn" class="btn-reset">← Start Over</button>
+    </section>
+  </main>
+
+  <footer>Built with Claude AI · ResumeIQ © 2026</footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
