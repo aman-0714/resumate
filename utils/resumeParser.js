@@ -25,13 +25,11 @@ const extractEmail = (text) => {
   const matches = text.match(emailRegex);
   if (!matches) return '';
 
-  // Try to strip common label prefixes that get concatenated in PDFs
-  // e.g. "Emailjohn@example.com", "Contactjohn@example.com", "Engineeringjohn@nitj.ac.in"
-  const labelPrefixes = /^(Email|Mail|Contact|Phone|Address|Engineering|Education|Name|LinkedIn|Github|Website)/i;
+  // Strip common label prefixes that get concatenated in PDFs
+  const labelPrefixes = /^(Email|Mail|Contact|Phone|Address|Engineering|Education|Name|LinkedIn|Github|Website)+/i;
 
   const cleaned = matches.map(m => {
-    const local = m.split('@')[0];
-    const domain = m.split('@')[1];
+    const [local, domain] = m.split('@');
     const strippedLocal = local.replace(labelPrefixes, '');
     return strippedLocal.length > 0 ? `${strippedLocal}@${domain}` : m;
   });
@@ -46,15 +44,14 @@ const extractEmail = (text) => {
 const extractPhone = (text) => {
   // Indian mobile: optional +91/91 prefix, then 10 digits starting 6-9
   const indianRegex = /(\+91|91)?[\s\-]?[6-9]\d{9}/g;
-  // US format
-  const usRegex = /(\+?1[\s.\-]?)?(\(?\d{3}\)?[\s.\-]?\d{3}[\s.\-]?\d{4})/g;
-
   const indianMatches = text.match(indianRegex);
   if (indianMatches) {
-    // Return just the 10-digit number
+    // Return just the 10-digit number, strip prefix/spaces/dashes
     return indianMatches[0].replace(/[\s\-+]/g, '').replace(/^91/, '');
   }
 
+  // US format fallback
+  const usRegex = /(\+?1[\s.\-]?)?(\(?\d{3}\)?[\s.\-]?\d{3}[\s.\-]?\d{4})/g;
   const usMatches = text.match(usRegex);
   if (usMatches) return usMatches[0].trim();
 
@@ -68,13 +65,14 @@ const extractPhone = (text) => {
 const extractName = (text) => {
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
 
+  // First pass: strict match — letters/spaces only, must have at least first + last name
   for (const line of lines.slice(0, 8)) {
     if (line.includes('@')) continue;
     if (line.toLowerCase().startsWith('http')) continue;
     if (line.length > 80) continue;
 
     // Strip trailing phone numbers concatenated to name
-    // e.g. "Guransh Singh+91-9915171730" or "John Doe | 9999999999"
+    // e.g. "VINAYAK RAI+91-7652921022" or "John Doe | 9999999999"
     let cleaned = line
       .replace(/[\|•·]\s*(\+?91[\s\-]?)?\d[\d\s\-().]{8,}/g, '') // phone after separator
       .replace(/\+91[\s\-]?\d{10}/g, '')                           // +91 phone
@@ -184,12 +182,15 @@ const extractEducation = (text) => {
 const extractExperience = (text) => {
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
 
-  const rolePattern = /\b(founder|co-founder|president|vice president|lead|head|manager|director|engineer|developer|intern|officer|secretary|coordinator|commander|chief|pathfinder)\b/i;
+  const rolePattern = /\b(founder|co-founder|president|vice president|lead|head|manager|director|engineer|developer|intern|officer|secretary|coordinator|commander|chief|pathfinder|representative|researcher|assistant)\b/i;
 
-  // Date ranges: "Jan 2024 – Present", "Aug 2024 – Present", "2023 – 2024"
+  // Date ranges: "Jan 2024 – Present", "2023 – 2024"
   const dateRangePattern = /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|january|february|march|april|june|july|august|september|october|november|december)?\s*(19|20)\d{2}\s*(–|-|to)\s*(present|(19|20)\d{2})/i;
 
-  const educationKeywords = ['b.tech', 'b.e', 'b.sc', 'm.tech', 'secondary', 'matriculation', 'cbse', 'cgpa', 'sgpa', '%', 'semester'];
+  const educationKeywords = [
+    'b.tech', 'b.e', 'b.sc', 'm.tech', 'secondary', 'matriculation',
+    'cbse', 'cgpa', 'sgpa', 'semester', 'percentage',
+  ];
 
   return lines
     .filter(line => {
