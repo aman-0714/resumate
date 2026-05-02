@@ -31,6 +31,11 @@ app.use('/api/analyze',   require('./routes/analyzeRoutes'));
 app.use('/api/career',    require('./routes/careerRoutes'));
 app.use('/api/job-match', require('./routes/jobMatchRoutes'));   // ← NLP matcher
 
+// ─── Root Route ───────────────────────────────────────────────────────────────
+app.get('/', (req, res) => {
+  res.json({ status: 'OK', message: 'Welcome to Resumate API 🚀' });
+});
+
 // ─── Health Check ──────────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Resumate API is running 🚀' });
