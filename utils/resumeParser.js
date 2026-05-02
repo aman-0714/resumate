@@ -1,4 +1,4 @@
-console.log("🔥 NEW PARSER FILE RUNNING");
+console.log("🔥 PARSER v3 RUNNING");
 // utils/resumeParser.js
 const pdfParse = require('pdf-parse');
 const fs = require('fs');
@@ -19,12 +19,13 @@ const extractTextFromPDF = async (filePath) => {
 
 // ─────────────────────────────────────────────
 // 2. SECTION SPLITTER
-// Splits raw text into named sections by heading detection
+// Splits raw text into named sections by heading detection.
+// Returns { sectionName: [lines...] }
 // ─────────────────────────────────────────────
 const splitIntoSections = (text) => {
-  // Headings appear as ALL-CAPS or Title Case on their own line
   const sectionHeadings = [
     'experience', 'work experience', 'professional experience', 'employment',
+    'position of responsibility', 'positions of responsibility',
     'education', 'academic background', 'qualifications',
     'skills', 'technical skills', 'core competencies',
     'projects', 'personal projects', 'academic projects',
@@ -46,19 +47,22 @@ const splitIntoSections = (text) => {
     if (!trimmed) continue;
 
     const lower = trimmed.toLowerCase().replace(/[^a-z\s]/g, '').trim();
-    const matchedHeading = sectionHeadings.find(h =>
-      lower === h || lower.startsWith(h + ' ') || lower.endsWith(' ' + h)
+
+    const matchedHeading = sectionHeadings.find(
+      h => lower === h || lower === h + 's'
     );
 
-    if (
-      matchedHeading &&
-      trimmed.length < 60 &&
-      // Heading lines are usually short and don't end with punctuation
-      !/[,;]$/.test(trimmed)
-    ) {
-      currentSection = matchedHeading.split(' ')[0]; // normalize to first word
+    if (matchedHeading && trimmed.length < 70 && !/[,;]$/.test(trimmed)) {
+      // Map "positions of responsibility" → 'experience'
+      const key =
+        matchedHeading === 'position of responsibility' ||
+        matchedHeading === 'positions of responsibility'
+          ? 'experience'
+          : matchedHeading.split(' ')[0];
+      currentSection = key;
       if (!sections[currentSection]) sections[currentSection] = [];
     } else {
+      if (!sections[currentSection]) sections[currentSection] = [];
       sections[currentSection].push(trimmed);
     }
   }
@@ -77,7 +81,6 @@ const extractName = (text) => {
     if (/^https?:\/\//i.test(line)) continue;
     if (line.length > 80) continue;
 
-    // Strip phone numbers concatenated to name
     let cleaned = line
       .replace(/[\|•·]\s*(\+?91[\s\-]?)?\d[\d\s\-().]{8,}/g, '')
       .replace(/\+91[\s\-]?\d{10}/g, '')
@@ -95,7 +98,6 @@ const extractName = (text) => {
     }
   }
 
-  // Fallback
   for (const line of lines.slice(0, 5)) {
     const cleaned = line.replace(/(\+?91[\s\-]?)?\d+/g, '').trim();
     if (cleaned.length > 2 && cleaned.length < 60 && /[A-Za-z\s]/.test(cleaned)) {
@@ -114,7 +116,6 @@ const extractEmail = (text) => {
   const matches = text.match(emailRegex);
   if (!matches) return '';
 
-  // Strip common label prefixes that get concatenated in PDFs
   const labelPrefixes = /^(Email|Mail|Contact|Phone|Address|Engineering|Education|Name|LinkedIn|Github|Website)+/i;
 
   const cleaned = matches.map(m => {
@@ -148,25 +149,18 @@ const extractSkills = (text) => {
   const lowerText = text.toLowerCase();
 
   const skillKeywords = [
-    // Languages
     'javascript', 'python', 'java', 'c++', 'c#', 'ruby', 'php', 'swift', 'kotlin',
     'typescript', 'go', 'rust', 'scala', 'r', 'matlab', 'perl', 'shell', 'bash',
-    // Web
     'react', 'angular', 'vue', 'node.js', 'express', 'django', 'flask', 'spring',
     'laravel', 'rails', 'next.js', 'nuxt', 'fastapi', 'nestjs',
-    // Databases
     'mongodb', 'mysql', 'postgresql', 'redis', 'sqlite', 'cassandra', 'oracle',
     'firebase', 'dynamodb', 'elasticsearch',
-    // Cloud & DevOps
     'aws', 'azure', 'gcp', 'docker', 'kubernetes', 'jenkins', 'git', 'github',
     'gitlab', 'ci/cd', 'terraform', 'ansible', 'linux', 'nginx',
-    // AI / Data
     'machine learning', 'deep learning', 'tensorflow', 'pytorch', 'pandas',
     'numpy', 'scikit-learn', 'keras', 'nlp', 'computer vision', 'data analysis',
-    // Other
     'rest api', 'graphql', 'microservices', 'agile', 'scrum', 'jira', 'html',
     'css', 'sass', 'tailwind', 'bootstrap', 'figma', 'photoshop',
-    // Soft
     'leadership', 'communication', 'teamwork', 'problem solving', 'project management',
     'time management', 'critical thinking', 'adaptability', 'creativity',
   ];
@@ -175,14 +169,33 @@ const extractSkills = (text) => {
 };
 
 // ─────────────────────────────────────────────
-// 7. EDUCATION  — cleaned & structured
+// 7. EDUCATION
+// FIX: filter table-header rows + properly merge split lines
 // ─────────────────────────────────────────────
+
+const cleanEducationEntry = (entry) => {
+  return entry
+    .replace(/([a-z])([A-Z])/g, '$1 $2')        // "B.TechCSE" → "B.Tech CSE"
+    .replace(/([A-Za-z])(\d{4})/g, '$1 $2')      // "Jalandhar2027" → "Jalandhar 2027"
+    .replace(/(\d{4})([A-Za-z])/g, '$1 $2')      // "2027NIT" → "2027 NIT"
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+};
+
+// Detect table-header rows like "Degree  Institute  Board  CGPA  Year"
+const isTableHeader = (line) => {
+  const headerPhrases = [
+    'degree institute', 'board university', 'cgpa percentage',
+    'degree board', 'institution year', 'qualification board',
+    'degree institute board',
+  ];
+  const lower = line.toLowerCase();
+  return headerPhrases.some(p => lower.includes(p));
+};
+
 const extractEducation = (text) => {
   const sections = splitIntoSections(text);
   const educationLines = sections['education'] || [];
-
-  // Also scan full text as fallback
-  const allLines = text.split('\n').map(l => l.trim()).filter(Boolean);
 
   const degreeKeywords = [
     'b.tech', 'b.e.', 'b.sc', 'm.tech', 'm.sc', 'mba', 'phd', 'ph.d',
@@ -190,29 +203,31 @@ const extractEducation = (text) => {
     'senior secondary', 'matriculation', 'higher secondary', '12th', '10th',
   ];
 
-  // Merge consecutive lines that belong to the same education entry
   const mergeConsecutive = (lines) => {
     const entries = [];
     let buffer = '';
 
-    for (const line of lines) {
+    for (const raw of lines) {
+      const line = raw.trim();
+      if (!line) continue;
+      if (isTableHeader(line)) continue;   // ← skip "Degree  Institute  Board..." rows
+
       const lower = line.toLowerCase();
       const hasDegree = degreeKeywords.some(d => lower.includes(d));
-      const hasInstitution = /university|institute|school|college|nit|iit|iim/i.test(line);
+      const hasInstitution = /university|institute|school|college|nit\b|iit\b|iim\b/i.test(line);
       const hasYear = /\b(19|20)\d{2}\b/.test(line);
       const hasGrade = /\b(\d{1,2}\.\d{1,2}|\d{2,3}\.?\d*%)\b/.test(line);
 
-      if (hasDegree || hasInstitution) {
+      if (hasDegree || (hasInstitution && !buffer)) {
         if (buffer) entries.push(cleanEducationEntry(buffer));
         buffer = line;
       } else if (buffer && (hasYear || hasGrade || hasInstitution)) {
-        // continuation of current entry
         buffer += ' | ' + line;
-      } else if (buffer && line.length < 80) {
+      } else if (buffer && line.length < 100) {
         buffer += ' ' + line;
       } else {
         if (buffer) entries.push(cleanEducationEntry(buffer));
-        buffer = '';
+        buffer = hasDegree || hasInstitution ? line : '';
       }
     }
     if (buffer) entries.push(cleanEducationEntry(buffer));
@@ -220,100 +235,133 @@ const extractEducation = (text) => {
     return entries.filter(e => e.length > 8);
   };
 
-  const sourceLines = educationLines.length > 1 ? educationLines : allLines.filter(line => {
-    const lower = line.toLowerCase();
-    return degreeKeywords.some(d => lower.includes(d)) && line.length > 5;
-  });
+  const sourceLines = educationLines.length > 1
+    ? educationLines
+    : text.split('\n').map(l => l.trim()).filter(l => {
+        const lower = l.toLowerCase();
+        return degreeKeywords.some(d => lower.includes(d)) && l.length > 5;
+      });
 
   return mergeConsecutive(sourceLines).slice(0, 6);
 };
 
-/**
- * Clean a raw education entry string:
- * - Insert spaces between concatenated words (CamelCase boundaries from PDF)
- * - Normalise separators
- */
-const cleanEducationEntry = (entry) => {
-  return entry
-    // Insert space before capital letters that follow lowercase (PDF concat artifact)
-    // e.g. "B.TechCSE" → "B.Tech CSE",  "NITJalandhar" → "NIT Jalandhar"
-    .replace(/([a-z])([A-Z])/g, '$1 $2')
-    // Insert space between letters and digits run together
-    .replace(/([A-Za-z])(\d)/g, '$1 $2')
-    .replace(/(\d)([A-Za-z])/g, '$1 $2')
-    // Collapse multiple spaces
-    .replace(/\s{2,}/g, ' ')
-    .trim();
-};
-
 // ─────────────────────────────────────────────
-// 8. EXPERIENCE  — cleaned & de-artifacted
+// 8. EXPERIENCE
+// FIX: capture ALL role lines (not only lines with full date-ranges)
+//      and handle "Positions of Responsibility" section heading
 // ─────────────────────────────────────────────
 const extractExperience = (text) => {
   const sections = splitIntoSections(text);
 
-  // Prefer the dedicated experience section; fall back to full text scan
   const expLines = [
-    ...(sections['experience'] || []),
+    ...(sections['experience'] || []),   // includes "Positions of Responsibility"
     ...(sections['volunteer'] || []),
     ...(sections['activities'] || []),
     ...(sections['extracurricular'] || []),
   ];
 
-  const rolePattern = /\b(founder|co-founder|president|vice.?president|lead|head|manager|director|engineer|developer|intern|officer|secretary|coordinator|commander|chief|pathfinder|representative|researcher|assistant|mentor)\b/i;
-  const dateRangePattern = /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|january|february|march|april|june|july|august|september|october|november|december)?\s*(19|20)\d{2}\s*(–|-|to)\s*(present|(19|20)\d{2})/i;
+  const rolePattern = /\b(founder|co-founder|president|vice.?president|lead|head|manager|director|engineer|developer|intern|officer|secretary|coordinator|commander|chief|pathfinder|representative|researcher|assistant|mentor|ambassador)\b/i;
+
+  // Month + year  OR  year range
+  const datePattern = /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|january|february|march|april|june|july|august|september|october|november|december)\b.{0,20}(19|20)\d{2}/i;
+  const yearRangePattern = /\b(19|20)\d{2}\s*(–|-|to)\s*(present|(19|20)\d{2})/i;
 
   const educationKeywords = [
     'b.tech', 'b.e', 'b.sc', 'm.tech', 'secondary', 'matriculation',
-    'cbse', 'cgpa', 'sgpa', 'semester', 'percentage',
+    'cbse', 'cgpa', 'sgpa', 'semester', 'percentage', 'board',
   ];
 
   const clean = (line) =>
     line
-      .replace(/^[\s–\-•·▪◦▸►]+/, '')  // strip leading dash/bullet artifacts
-      .replace(/([a-z])([A-Z])/g, '$1 $2') // fix CamelCase concat
+      .replace(/^[\s–\-•·▪◦▸►◆]+/, '')
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
       .replace(/\s{2,}/g, ' ')
       .trim();
 
-  const seen = new Set();
-  const results = [];
+  const buildEntries = (lines) => {
+    const results = [];
+    const seen = new Set();
+    let i = 0;
 
-  const sourceLines = expLines.length > 2 ? expLines : text.split('\n').map(l => l.trim()).filter(Boolean);
+    while (i < lines.length) {
+      const line = clean(lines[i]);
+      if (!line || line.length < 8) { i++; continue; }
 
-  for (const raw of sourceLines) {
-    const line = clean(raw);
-    if (!line || line.length < 10) continue;
+      const lower = line.toLowerCase();
+      const hasRole = rolePattern.test(line);
+      const hasDate = datePattern.test(line) || yearRangePattern.test(line);
+      const isEdu = educationKeywords.some(k => lower.includes(k));
 
-    const lower = line.toLowerCase();
-    const hasRole = rolePattern.test(line);
-    const hasDate = dateRangePattern.test(line);
-    const isEducation = educationKeywords.some(k => lower.includes(k));
+      if ((hasRole || hasDate) && !isEdu) {
+        let entry = line;
 
-    if ((hasRole || hasDate) && !isEducation && !seen.has(line)) {
-      seen.add(line);
-      results.push(line);
+        // Merge next line if it's a short date continuation
+        if (
+          i + 1 < lines.length &&
+          lines[i + 1] &&
+          (datePattern.test(lines[i + 1]) || yearRangePattern.test(lines[i + 1])) &&
+          lines[i + 1].trim().length < 80
+        ) {
+          entry += ' | ' + clean(lines[i + 1]);
+          i++;
+        }
+
+        if (!seen.has(entry)) {
+          seen.add(entry);
+          results.push(entry);
+        }
+      }
+
+      i++;
+      if (results.length >= 12) break;
     }
 
-    if (results.length >= 12) break;
-  }
+    return results;
+  };
 
-  return results;
+  const sourceLines = expLines.length > 1
+    ? expLines
+    : text.split('\n').map(l => l.trim()).filter(Boolean);
+
+  return buildEntries(sourceLines);
 };
 
 // ─────────────────────────────────────────────
 // 9. SUMMARY
+// FIX: filter out institution/address/LinkedIn noise lines
 // ─────────────────────────────────────────────
 const extractSummary = (text) => {
   const sections = splitIntoSections(text);
-  const summaryLines = sections['summary'] || sections['objective'] || sections['profile'] || [];
+  const candidates = [
+    ...(sections['summary'] || []),
+    ...(sections['objective'] || []),
+    ...(sections['profile'] || []),
+  ];
 
-  if (summaryLines.length > 0) {
-    return summaryLines.join(' ').replace(/\s{2,}/g, ' ').trim().slice(0, 600);
+  const noisePatterns = [
+    /linkedin/i, /github\.com/i, /http/i,
+    /national institute/i, /university/i, /institute of technology/i,
+    /jalandhar/i, /punjab/i, /ludhiana/i,
+    /^\+?91/, /^\d{10}/,
+  ];
+
+  const cleaned = candidates
+    .filter(l => l.length > 20)
+    .filter(l => !noisePatterns.some(p => p.test(l)));
+
+  if (cleaned.length > 0) {
+    return cleaned.join(' ').replace(/\s{2,}/g, ' ').trim().slice(0, 600);
   }
 
-  // Fallback: find a multi-word sentence in header area
-  const headerLines = (splitIntoSections(text)['header'] || []);
-  const sentence = headerLines.find(l => l.split(' ').length > 8 && l.length < 500 && !l.includes('@'));
+  // Fallback: look in header for a descriptive sentence
+  const headerLines = sections['header'] || [];
+  const sentence = headerLines.find(l =>
+    l.split(' ').length > 8 &&
+    l.length < 500 &&
+    !l.includes('@') &&
+    !noisePatterns.some(p => p.test(l))
+  );
+
   return sentence ? sentence.trim().slice(0, 600) : '';
 };
 
