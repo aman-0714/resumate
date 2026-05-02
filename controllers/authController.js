@@ -27,7 +27,8 @@ const signup = async (req, res) => {
       user: { id: user._id, name: user.name, email: user.email },
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error during signup.' });
+    console.error('SIGNUP ERROR:', error.message, error.stack);
+    res.status(500).json({ success: false, message: 'Server error during signup.', detail: error.message });
   }
 };
 
@@ -49,7 +50,8 @@ const login = async (req, res) => {
       user: { id: user._id, name: user.name, email: user.email },
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error during login.' });
+    console.error('LOGIN ERROR:', error.message, error.stack);
+    res.status(500).json({ success: false, message: 'Server error during login.', detail: error.message });
   }
 };
 
