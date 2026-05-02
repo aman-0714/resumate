@@ -9,12 +9,25 @@ require('dotenv').config();
 
 const app = express();
 
-// ─── Security Middleware ───────────────────────────────────────────────────────
-app.use(helmet());
+// ─── CORS ─────────────────────────────────────────────────────────────────────
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  process.env.FRONTEND_URL,
+].filter(Boolean);
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, Postman)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    callback(new Error(`CORS: origin '${origin}' not allowed`));
+  },
   credentials: true,
 }));
+
+// ─── Security Middleware ───────────────────────────────────────────────────────
+app.use(helmet());
 
 // ─── Request Parsing ───────────────────────────────────────────────────────────
 app.use(express.json({ limit: '10mb' }));
@@ -29,7 +42,7 @@ app.use('/api/auth',      require('./routes/authRoutes'));
 app.use('/api/resume',    require('./routes/resumeRoutes'));
 app.use('/api/analyze',   require('./routes/analyzeRoutes'));
 app.use('/api/career',    require('./routes/careerRoutes'));
-app.use('/api/job-match', require('./routes/jobMatchRoutes'));   // ← NLP matcher
+app.use('/api/job-match', require('./routes/jobMatchRoutes'));
 
 // ─── Root Route ───────────────────────────────────────────────────────────────
 app.get('/', (req, res) => {
