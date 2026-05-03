@@ -64,7 +64,7 @@ const features = [
   },
   {
     icon: '✨',
-    title: 'AI Resume Rewrite',
+    title: 'AI Analysis',
     desc: 'Get a comprehensive ATS score, keyword match score, structure score, and have AI instantly rewrite your resume with stronger verbs and impact-driven bullets.',
     color: 'from-purple-500/10 to-purple-600/5',
     border: 'hover:border-purple-500/40',

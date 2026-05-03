@@ -187,6 +187,97 @@ const ResumeRewriter = () => {
           </p>
         </div>
 
+        {/* Parsed Resume Data */}
+        {resume?.parsedData && (
+          <div className="card mb-6 border-blue-500/20 bg-blue-500/5">
+            <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              📄 Parsed Resume Data
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Contact Info */}
+              <div>
+                <h3 className="text-xs text-slate-400 uppercase tracking-widest mb-2">Contact</h3>
+                <div className="space-y-1.5">
+                  {resume.parsedData.name && (
+                    <div className="flex gap-2 text-sm">
+                      <span className="text-slate-500 shrink-0">👤</span>
+                      <span className="text-white font-medium">{resume.parsedData.name}</span>
+                    </div>
+                  )}
+                  {resume.parsedData.email && (
+                    <div className="flex gap-2 text-sm">
+                      <span className="text-slate-500 shrink-0">✉️</span>
+                      <span className="text-slate-300">{resume.parsedData.email}</span>
+                    </div>
+                  )}
+                  {resume.parsedData.phone && (
+                    <div className="flex gap-2 text-sm">
+                      <span className="text-slate-500 shrink-0">📞</span>
+                      <span className="text-slate-300">{resume.parsedData.phone}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Skills */}
+                {resume.parsedData.skills?.length > 0 && (
+                  <div className="mt-4">
+                    <h3 className="text-xs text-slate-400 uppercase tracking-widest mb-2">Skills</h3>
+                    <div className="flex flex-wrap gap-1.5">
+                      {resume.parsedData.skills.slice(0, 20).map((skill, i) => (
+                        <span key={i} className="text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-300 border border-blue-500/20">
+                          {skill}
+                        </span>
+                      ))}
+                      {resume.parsedData.skills.length > 20 && (
+                        <span className="text-xs text-slate-500">+{resume.parsedData.skills.length - 20} more</span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Education + Experience */}
+              <div>
+                {resume.parsedData.education?.length > 0 && (
+                  <div className="mb-4">
+                    <h3 className="text-xs text-slate-400 uppercase tracking-widest mb-2">Education</h3>
+                    <div className="space-y-2">
+                      {resume.parsedData.education.map((edu, i) => (
+                        <div key={i} className="bg-slate-800/60 rounded-xl px-3 py-2">
+                          {edu.degree && <div className="text-white text-sm font-medium">{edu.degree}</div>}
+                          {edu.institution && <div className="text-slate-400 text-xs">{edu.institution}</div>}
+                          {(edu.score || edu.year) && (
+                            <div className="text-slate-500 text-xs mt-0.5">
+                              {edu.score && <span>{edu.score}</span>}
+                              {edu.score && edu.year && <span className="mx-1">·</span>}
+                              {edu.year && <span>{edu.year}</span>}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {resume.parsedData.experience?.length > 0 && (
+                  <div>
+                    <h3 className="text-xs text-slate-400 uppercase tracking-widest mb-2">Experience</h3>
+                    <div className="space-y-2">
+                      {resume.parsedData.experience.map((exp, i) => (
+                        <div key={i} className="bg-slate-800/60 rounded-xl px-3 py-2">
+                          {exp.role && <div className="text-white text-sm font-medium">{exp.role}</div>}
+                          {exp.organization && <div className="text-slate-400 text-xs">{exp.organization}</div>}
+                          {exp.period && <div className="text-slate-500 text-xs">{exp.period}</div>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Config card */}
         <div className="card mb-6">
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end">

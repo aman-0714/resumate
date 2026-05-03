@@ -238,11 +238,10 @@ const Dashboard = () => {
         )}
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
           {[
             { icon: '⬆️', label: 'Upload Resume', desc: 'Add a new resume to analyze', to: '/upload', primary: true },
-            { icon: '🎯', label: 'Job Match', desc: 'Match your resume to a job listing', to: '/job-match' },
-            { icon: '📈', label: 'Improve Score', desc: 'Get tips to boost your ATS score', to: analyzed[0] ? `/analyze/${analyzed[0]._id}` : '/upload' },
+            { icon: '📈', label: 'AI Rewrite', desc: 'Rewrite your resume with stronger verbs & ATS keywords', to: analyzed[0] ? `/rewrite/${analyzed[0]._id}` : '/upload' },
           ].map(a => (
             <Link
               key={a.label}

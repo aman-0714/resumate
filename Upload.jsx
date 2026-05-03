@@ -40,7 +40,7 @@ const Upload = () => {
       const formData = new FormData();
       formData.append('resume', file);
       const { data } = await resumeAPI.upload(formData);
-      navigate(`/analyze/${data.resume.id}`);
+      navigate(`/rewrite/${data.resume.id}`);
     } catch (err) {
       setError(err.response?.data?.message || 'Upload failed. Please try again.');
     } finally {
@@ -109,7 +109,7 @@ const Upload = () => {
             disabled={!file || uploading}
             className="btn-primary flex-1"
           >
-            {uploading ? 'Uploading & Parsing...' : 'Upload & Analyze →'}
+            {uploading ? 'Uploading & Parsing...' : 'Upload & AI Rewrite →'}
           </button>
         </div>
 
