@@ -54,6 +54,10 @@ export const analyzeAPI = {
 // ─── Resume Rewriter ──────────────────────────────────────────────────────────
 export const rewriteAPI = {
   rewrite: (resumeId, data) => api.post(`/rewrite/${resumeId}`, data),
+
+  // Download rewritten resume as a formatted PDF blob
+  downloadPDF: (resumeId, data) =>
+    api.post(`/rewrite/${resumeId}/pdf`, data, { responseType: 'blob' }),
 };
 
 // ─── Career ───────────────────────────────────────────────────────────────────

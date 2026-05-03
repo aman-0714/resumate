@@ -2,6 +2,7 @@
 // AI-powered resume rewriter using Anthropic Claude API
 'use strict';
 
+const path = require('path');
 const Resume = require('../models/Resume');
 const { JOB_ROLE_KEYWORDS, normalizeJobRole } = require('../utils/aiScorer');
 
@@ -70,50 +71,65 @@ const claudeRewrite = async (rawText, parsedData, effectiveRole) => {
     ? [...(roleData.required || []), ...(roleData.preferred || [])].slice(0, 12).join(', ')
     : 'relevant industry skills';
 
-  const systemPrompt = `You are an expert resume writer and ATS optimization specialist with 15+ years of experience helping candidates land jobs at top companies.
+  const systemPrompt = `You are a professional resume writer and ATS optimization expert with 15+ years of experience helping candidates land jobs at top companies.
 
-Your job is to SUBSTANTIALLY improve the given resume for a ${roleTitle} role. You must make REAL, MEANINGFUL changes — not cosmetic ones.
-
-═══════════════════════════════════════
-WHAT YOU MUST DO (ALL of these):
-═══════════════════════════════════════
-
-1. PROFILE / SUMMARY
-   - Write a compelling 3-4 sentence professional summary that highlights the candidate's strongest value proposition for ${roleTitle}.
-   - Make it specific to their actual background, not generic.
-
-2. EDUCATION
-   - Keep all existing education entries.
-   - If percentage/CGPA is present, keep it. If secondary/high school details exist, include them with grades.
-   - Format clearly with institution, degree, dates, and scores.
-
-3. SKILLS SECTION
-   - Expand and restructure into categorized rows: Languages, Frameworks & Libraries, Tools & Platforms, Concepts.
-   - Add ATS-critical keywords for ${roleTitle}: ${roleKeywords}.
-   - Only add skills that are plausible given their existing profile — do NOT fabricate.
-
-4. EXPERIENCE / PROJECTS (most important section)
-   - Rewrite EVERY bullet point to start with a strong action verb (Engineered, Architected, Spearheaded, Optimized, Automated, Deployed, Integrated, etc.).
-   - Add quantified impact wherever reasonably inferable (e.g., "reducing load time by X%", "improving accuracy to X%").
-   - Add tech stack details to each project/experience if not already there.
-   - If the project bullets are vague, make them specific and technical.
-   - Expand thin bullet points into 2-3 strong bullets.
-
-5. ACHIEVEMENTS / CERTIFICATIONS
-   - Keep all existing ones.
-   - Format them clearly as bullet points.
+Rewrite the resume below for a ${roleTitle} role following ALL rules below precisely.
 
 ═══════════════════════════════════════
-STRICT RULES:
+OUTPUT FORMAT — STRICTLY REQUIRED
 ═══════════════════════════════════════
-- Do NOT invent fake companies, fake degrees, or fake job titles.
-- Do NOT change the person's real name, contact info, or actual work history.
-- Do NOT add fake metrics you cannot reasonably infer.
-- Remove all first-person pronouns (I, my, me, we).
-- Use clean plain-text formatting (no markdown, no asterisks, no bold/italic markers).
-- Sections must be in this order: Name/Contact, Profile, Education, Skills, Projects/Experience, Achievements.
 
-Return ONLY the improved resume text. No commentary, no explanations, no code fences.`;
+Use ONLY these section headings in UPPERCASE, in this exact order:
+  SUMMARY
+  EDUCATION
+  SKILLS
+  EXPERIENCE   (if any jobs/internships exist)
+  PROJECTS     (if any projects exist)
+  ACHIEVEMENTS (if any exist)
+
+Under each heading, follow these rules:
+
+SUMMARY
+  • 3-4 sentences max. Strong value proposition for ${roleTitle}.
+  • No first-person pronouns.
+
+EDUCATION
+  • One line per degree: Degree | Institution | Year | Score (if given)
+  • Include ALL entries from the original — do not drop any.
+
+SKILLS
+  • Format as labelled rows (no bullets), e.g.:
+      Languages     : Python, C++, JavaScript
+      Frameworks    : React, Node.js, Express
+      Tools         : Git, Docker, VS Code
+      Concepts      : REST APIs, OOP, Data Structures
+  • Incorporate ATS keywords for ${roleTitle}: ${roleKeywords}
+  • Only add skills plausible from the candidate's background.
+
+EXPERIENCE / PROJECTS
+  • Every entry must have:
+      Title / Company / Role  |  Date range
+      • Bullet 1 (action verb + tech + impact)
+      • Bullet 2
+      • Bullet 3 (optional)
+  • Each bullet starts with a strong action verb (Engineered, Architected, Automated, Optimized, Deployed, Integrated, Spearheaded, Reduced, Increased, Designed, Built, Implemented, Developed, Led, etc.)
+  • Each bullet max 20 words.
+  • Add quantified impact wherever reasonably inferable (%, ms, users, etc.)
+  • Remove all first-person pronouns.
+
+ACHIEVEMENTS
+  • Bullet list of certifications, awards, publications, competitions.
+  • Keep all original achievements; improve wording only.
+
+═══════════════════════════════════════
+ABSOLUTE RULES
+═══════════════════════════════════════
+- Do NOT invent companies, degrees, job titles, or fake metrics.
+- Do NOT change name, contact info, or actual work history.
+- Do NOT use markdown (no **, no #, no backticks).
+- Do NOT add commentary, preamble, or code fences.
+- Plain text only. Indentation with spaces is fine.
+- Return ONLY the improved resume text — nothing else.`;
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -159,7 +175,174 @@ Return ONLY the improved resume text. No commentary, no explanations, no code fe
   }
 };
 
-// ─── Main controller ──────────────────────────────────────────────────────────
+// ─── PDF builder helper ───────────────────────────────────────────────────────
+// Builds a clean, ATS-friendly PDF from plain rewritten text using pdfkit.
+const buildResumePDF = async (rewrittenText, fileName) => {
+  // Lazy-require so the server still boots if pdfkit isn't installed yet
+  let PDFDocument;
+  try {
+    PDFDocument = require('pdfkit');
+  } catch {
+    throw new Error('pdfkit is not installed. Run: npm install pdfkit');
+  }
+
+  return new Promise((resolve, reject) => {
+    const doc    = new PDFDocument({ margin: 50, size: 'A4' });
+    const chunks = [];
+
+    doc.on('data',  chunk => chunks.push(chunk));
+    doc.on('end',   ()    => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
+
+    // ── Fonts ────────────────────────────────────────────────────────────────
+    const FONT_BOLD   = 'Helvetica-Bold';
+    const FONT_NORMAL = 'Helvetica';
+    const COLOR_HEAD  = '#1a1a2e'; // near-black navy
+    const COLOR_LINE  = '#4a4a8a'; // muted indigo rule
+    const COLOR_TEXT  = '#2d2d2d';
+    const COLOR_SUB   = '#555555';
+
+    const PAGE_WIDTH = doc.page.width - 100; // accounting for margins
+
+    // ── Section heading renderer ─────────────────────────────────────────────
+    const drawSection = (title) => {
+      doc.moveDown(0.6);
+      doc
+        .font(FONT_BOLD)
+        .fontSize(11)
+        .fillColor(COLOR_HEAD)
+        .text(title.toUpperCase(), { continued: false });
+      // horizontal rule
+      const y = doc.y + 2;
+      doc
+        .moveTo(50, y)
+        .lineTo(50 + PAGE_WIDTH, y)
+        .strokeColor(COLOR_LINE)
+        .lineWidth(0.8)
+        .stroke();
+      doc.moveDown(0.3);
+    };
+
+    // ── Parse the plain text into sections ───────────────────────────────────
+    const KNOWN_SECTIONS = ['SUMMARY', 'EDUCATION', 'SKILLS', 'EXPERIENCE', 'PROJECTS', 'ACHIEVEMENTS'];
+    const lines = rewrittenText.split('\n');
+
+    // Separate header block (name + contact) from sections
+    // Heuristic: everything before the first known section heading is the header
+    let headerLines = [];
+    let bodyLines   = [];
+    let inBody      = false;
+    for (const line of lines) {
+      const trimmed = line.trim().toUpperCase();
+      if (!inBody && KNOWN_SECTIONS.includes(trimmed)) {
+        inBody = true;
+      }
+      if (inBody) bodyLines.push(line);
+      else         headerLines.push(line);
+    }
+
+    // ── Render header ────────────────────────────────────────────────────────
+    const nonEmpty = headerLines.filter(l => l.trim());
+    if (nonEmpty.length) {
+      // First non-empty line = candidate name
+      doc
+        .font(FONT_BOLD)
+        .fontSize(20)
+        .fillColor(COLOR_HEAD)
+        .text(nonEmpty[0].trim(), { align: 'center' });
+
+      // Remaining header lines = contact info
+      if (nonEmpty.length > 1) {
+        doc
+          .font(FONT_NORMAL)
+          .fontSize(9)
+          .fillColor(COLOR_SUB)
+          .text(nonEmpty.slice(1).map(l => l.trim()).filter(Boolean).join('  |  '), { align: 'center' });
+      }
+      doc.moveDown(0.4);
+      // full-width divider
+      const y = doc.y;
+      doc.moveTo(50, y).lineTo(50 + PAGE_WIDTH, y).strokeColor(COLOR_LINE).lineWidth(1.2).stroke();
+      doc.moveDown(0.4);
+    }
+
+    // ── Render body sections ─────────────────────────────────────────────────
+    let i = 0;
+    while (i < bodyLines.length) {
+      const trimmed = bodyLines[i].trim().toUpperCase();
+
+      if (KNOWN_SECTIONS.includes(trimmed)) {
+        drawSection(bodyLines[i].trim());
+        i++;
+
+        // Collect lines until next section
+        const sectionLines = [];
+        while (i < bodyLines.length && !KNOWN_SECTIONS.includes(bodyLines[i].trim().toUpperCase())) {
+          sectionLines.push(bodyLines[i]);
+          i++;
+        }
+
+        if (trimmed === 'SKILLS') {
+          // Skills: labelled rows
+          for (const line of sectionLines) {
+            if (!line.trim()) { doc.moveDown(0.2); continue; }
+            if (line.includes(':')) {
+              const [label, ...rest] = line.split(':');
+              doc
+                .font(FONT_BOLD).fontSize(9).fillColor(COLOR_TEXT)
+                .text(label.trim() + ': ', { continued: true })
+                .font(FONT_NORMAL).fillColor(COLOR_SUB)
+                .text(rest.join(':').trim());
+            } else {
+              doc.font(FONT_NORMAL).fontSize(9).fillColor(COLOR_SUB).text(line.trim());
+            }
+            doc.moveDown(0.15);
+          }
+
+        } else if (trimmed === 'SUMMARY') {
+          const paragraphs = sectionLines.filter(l => l.trim()).join(' ');
+          doc
+            .font(FONT_NORMAL).fontSize(9.5).fillColor(COLOR_TEXT)
+            .text(paragraphs, { width: PAGE_WIDTH, lineGap: 2 });
+          doc.moveDown(0.3);
+
+        } else {
+          // EDUCATION / EXPERIENCE / PROJECTS / ACHIEVEMENTS
+          for (const line of sectionLines) {
+            const t = line.trim();
+            if (!t) { doc.moveDown(0.2); continue; }
+
+            if (t.startsWith('•') || t.startsWith('-')) {
+              // bullet
+              const bullet = '•  ' + t.replace(/^[•\-]\s*/, '');
+              doc
+                .font(FONT_NORMAL).fontSize(9.5).fillColor(COLOR_TEXT)
+                .text(bullet, { indent: 10, width: PAGE_WIDTH - 10, lineGap: 1.5 });
+            } else if (/\|/.test(t)) {
+              // sub-header with pipe separators (e.g. role | company | date)
+              doc
+                .font(FONT_BOLD).fontSize(9.5).fillColor(COLOR_HEAD)
+                .text(t, { width: PAGE_WIDTH });
+            } else {
+              // plain text (e.g. degree line)
+              doc
+                .font(FONT_NORMAL).fontSize(9.5).fillColor(COLOR_TEXT)
+                .text(t, { width: PAGE_WIDTH, lineGap: 1.5 });
+            }
+            doc.moveDown(0.1);
+          }
+        }
+
+      } else {
+        i++; // skip stray lines between sections
+      }
+    }
+
+    doc.end();
+  });
+};
+
+// ─── Main rewrite controller ──────────────────────────────────────────────────
 // POST /api/rewrite/:resumeId
 // Body: { jobRole: string }
 const rewriteResume = async (req, res) => {
@@ -218,4 +401,45 @@ const rewriteResume = async (req, res) => {
   }
 };
 
-module.exports = { rewriteResume };
+// ─── PDF download controller ──────────────────────────────────────────────────
+// POST /api/rewrite/:resumeId/pdf
+// Body: { rewrittenText: string, fileName?: string }
+const downloadRewrittenPDF = async (req, res) => {
+  try {
+    const { rewrittenText, fileName } = req.body;
+
+    if (!rewrittenText || rewrittenText.trim().length < 50) {
+      return res.status(400).json({ success: false, message: 'No rewritten text provided.' });
+    }
+
+    // Verify resume ownership
+    const resume = await Resume.findOne({
+      _id:  req.params.resumeId,
+      user: req.user._id,
+    });
+    if (!resume) {
+      return res.status(404).json({ success: false, message: 'Resume not found.' });
+    }
+
+    const pdfBuffer = await buildResumePDF(rewrittenText, fileName || resume.fileName);
+    const safeName  = (fileName || resume.fileName || 'resume')
+      .replace(/\.[^.]+$/, '')
+      .replace(/[^a-zA-Z0-9_\- ]/g, '_');
+
+    res.set({
+      'Content-Type':        'application/pdf',
+      'Content-Disposition': `attachment; filename="${safeName}_optimized.pdf"`,
+      'Content-Length':       pdfBuffer.length,
+    });
+    res.send(pdfBuffer);
+
+  } catch (err) {
+    console.error('[downloadRewrittenPDF]', err.message);
+    return res.status(500).json({
+      success: false,
+      message: err.message.includes('pdfkit') ? err.message : 'PDF generation failed.',
+    });
+  }
+};
+
+module.exports = { rewriteResume, downloadRewrittenPDF };

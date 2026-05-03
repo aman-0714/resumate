@@ -60,14 +60,16 @@ const ResumeRewriter = () => {
   const { resumeId } = useParams();
   const navigate = useNavigate();
 
-  const [resume,       setResume]       = useState(null);
-  const [jobRole,      setJobRole]      = useState('');
-  const [loading,      setLoading]      = useState(true);
-  const [rewriting,    setRewriting]    = useState(false);
-  const [result,       setResult]       = useState(null);
-  const [error,        setError]        = useState('');
-  const [view,         setView]         = useState('split'); // 'split' | 'rewritten' | 'diff'
-  const [copied,       setCopied]       = useState(false);
+  const [resume,        setResume]        = useState(null);
+  const [jobRole,       setJobRole]       = useState('');
+  const [loading,       setLoading]       = useState(true);
+  const [rewriting,     setRewriting]     = useState(false);
+  const [result,        setResult]        = useState(null);
+  const [error,         setError]         = useState('');
+  const [view,          setView]          = useState('split'); // 'split' | 'rewritten' | 'diff'
+  const [copied,        setCopied]        = useState(false);
+  const [downloading,   setDownloading]   = useState(false);
+  const [downloadError, setDownloadError] = useState('');
 
   useEffect(() => {
     const load = async () => {
@@ -91,6 +93,7 @@ const ResumeRewriter = () => {
     setRewriting(true);
     setError('');
     setResult(null);
+    setDownloadError('');
     try {
       const { data } = await rewriteAPI.rewrite(resumeId, { jobRole });
       setResult(data);
@@ -109,18 +112,37 @@ const ResumeRewriter = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleDownload = () => {
+  // ── PDF download ─────────────────────────────────────────────────────────
+  const handleDownloadPDF = async () => {
     if (!result?.rewrittenText) return;
-    const blob = new Blob([result.rewrittenText], { type: 'text/plain' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href     = url;
-    a.download = `${resume?.fileName?.replace(/\.[^.]+$/, '') || 'resume'}_optimized.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
+    setDownloading(true);
+    setDownloadError('');
+    try {
+      const response = await rewriteAPI.downloadPDF(resumeId, {
+        rewrittenText: result.rewrittenText,
+        fileName: resume?.fileName,
+      });
+
+      // response.data is a Blob (responseType: 'blob' set in api.js)
+      const blob     = new Blob([response.data], { type: 'application/pdf' });
+      const url      = URL.createObjectURL(blob);
+      const safeName = (resume?.fileName || 'resume').replace(/\.[^.]+$/, '');
+      const a        = document.createElement('a');
+      a.href         = url;
+      a.download     = `${safeName}_optimized.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('PDF download failed:', err);
+      setDownloadError('PDF generation failed. Make sure pdfkit is installed on the server (npm install pdfkit).');
+    } finally {
+      setDownloading(false);
+    }
   };
 
-  // ─── Loading state ────────────────────────────────────────────────────────
+  // ── Loading state ─────────────────────────────────────────────────────────
   if (loading) return (
     <div className="min-h-screen pt-24 flex items-center justify-center text-slate-400">
       Loading resume...
@@ -268,19 +290,30 @@ const ResumeRewriter = () => {
             </div>
 
             {/* Action buttons */}
-            <div className="flex gap-2 mb-4">
+            <div className="flex flex-wrap gap-2 mb-4">
               <button
                 onClick={handleCopy}
                 className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-sm transition-colors border border-slate-700"
               >
-                {copied ? '✅ Copied!' : '📋 Copy'}
+                {copied ? '✅ Copied!' : '📋 Copy Text'}
               </button>
+
+              {/* ── PDF Download button ── */}
               <button
-                onClick={handleDownload}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-sm transition-colors border border-slate-700"
+                onClick={handleDownloadPDF}
+                disabled={downloading}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-green-500/10 hover:bg-green-500/20 text-green-400 hover:text-green-300 text-sm transition-colors border border-green-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                ⬇️ Download .txt
+                {downloading ? (
+                  <>
+                    <span className="animate-spin inline-block w-3.5 h-3.5 border-2 border-green-400/30 border-t-green-400 rounded-full" />
+                    Generating PDF...
+                  </>
+                ) : (
+                  <>⬇️ Download PDF</>
+                )}
               </button>
+
               <button
                 onClick={() => navigate(`/analyze/${resumeId}`)}
                 className="flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-500/10 hover:bg-brand-500/20 text-brand-400 text-sm transition-colors border border-brand-500/30"
@@ -288,6 +321,13 @@ const ResumeRewriter = () => {
                 📊 Re-Analyze
               </button>
             </div>
+
+            {/* PDF download error */}
+            {downloadError && (
+              <div className="mb-4 bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-red-400 text-sm">
+                {downloadError}
+              </div>
+            )}
 
             {/* Text panels */}
             {view === 'split' && (
