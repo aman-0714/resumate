@@ -2,10 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { resumeAPI, jobMatchAPI } from './src/api.js';
 
-// Normalise whatever score shape the backend returns into 0-100
+// Normalise score — backend returns matchScore 0-100
 const normaliseScore = (result) => {
   const raw = result?.matchScore ?? result?.score ?? result?.overallScore ?? 0;
-  // If it's already 0-100 range, use it directly; if it's 0-1 fraction, multiply
   return raw > 1 ? Math.round(raw) : Math.round(raw * 100);
 };
 
@@ -106,10 +105,10 @@ const JobMatch = () => {
 
   const score = result ? normaliseScore(result) : 0;
   const verdictLabel =
-    score >= 80 ? '✅ Strong Match' :
-    score >= 60 ? '⚡ Moderate Match' :
-    score >= 40 ? '⚠️ Weak Match' :
-    '❌ Poor Match';
+    score >= 85 ? '✅ Excellent Match' :
+    score >= 70 ? '⚡ Good Match' :
+    score >= 50 ? '⚠️ Fair Match' :
+    '❌ Weak Match';
 
   return (
     <div className="min-h-screen pt-24 pb-16 px-4">
@@ -248,63 +247,86 @@ const JobMatch = () => {
               </div>
               <div className="flex-1 text-center sm:text-left">
                 <h2 className="text-2xl font-bold text-white mb-1">
-                  {result.verdict || verdictLabel}
+                  {verdictLabel}
                 </h2>
-                {result.summary && (
-                  <p className="text-slate-400 text-sm leading-relaxed mb-3">{result.summary}</p>
+                <p className="text-xs text-slate-500 uppercase tracking-widest mb-2">{result.grade} · Cosine similarity: {result.cosineSimilarity}</p>
+                {result.recommendation && (
+                  <p className="text-slate-400 text-sm leading-relaxed mb-3">{result.recommendation}</p>
                 )}
                 <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
-                  {result.matchedKeywords?.length > 0 && (
+                  {result.matchedSkills?.length > 0 && (
                     <span className="text-xs px-3 py-1 rounded-full bg-green-500/10 text-green-400 border border-green-500/20">
-                      ✓ {result.matchedKeywords.length} matched
+                      ✓ {result.matchedSkills.length} matched
                     </span>
                   )}
-                  {result.missingKeywords?.length > 0 && (
+                  {result.missingSkills?.length > 0 && (
                     <span className="text-xs px-3 py-1 rounded-full bg-red-500/10 text-red-400 border border-red-500/20">
-                      ✗ {result.missingKeywords.length} missing
+                      ✗ {result.missingSkills.length} missing
+                    </span>
+                  )}
+                  {result.bonusSkills?.length > 0 && (
+                    <span className="text-xs px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                      + {result.bonusSkills.length} bonus skills
                     </span>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* Matched keywords */}
-            {result.matchedKeywords?.length > 0 && (
+            {/* Matched skills */}
+            {result.matchedSkills?.length > 0 && (
               <div className="card">
                 <h3 className="text-lg font-semibold text-white mb-3">
-                  ✅ Matched Keywords
-                  <span className="text-xs text-slate-500 font-normal ml-2">({result.matchedKeywords.length})</span>
+                  ✅ Matched Skills
+                  <span className="text-xs text-slate-500 font-normal ml-2">({result.matchedSkills.length})</span>
                 </h3>
                 <div className="flex flex-wrap gap-2">
-                  {result.matchedKeywords.map((k) => <Badge key={k} color="green">{k}</Badge>)}
+                  {result.matchedSkills.map((k) => <Badge key={k} color="green">{k}</Badge>)}
                 </div>
               </div>
             )}
 
-            {/* Missing keywords */}
-            {result.missingKeywords?.length > 0 && (
+            {/* Missing skills */}
+            {result.missingSkills?.length > 0 && (
               <div className="card">
                 <h3 className="text-lg font-semibold text-white mb-1">
-                  ❌ Missing Keywords
+                  ❌ Missing Skills
                 </h3>
                 <p className="text-xs text-slate-500 mb-3">Add these to your resume to improve your match score</p>
                 <div className="flex flex-wrap gap-2">
-                  {result.missingKeywords.map((k) => <Badge key={k} color="red">{k}</Badge>)}
+                  {result.missingSkills.map((k) => <Badge key={k} color="red">{k}</Badge>)}
                 </div>
               </div>
             )}
 
-            {/* Suggestions */}
-            {result.suggestions?.length > 0 && (
+            {/* Bonus skills */}
+            {result.bonusSkills?.length > 0 && (
               <div className="card">
-                <h3 className="text-lg font-semibold text-white mb-3">💡 Suggestions</h3>
-                <ul className="space-y-2">
-                  {result.suggestions.map((s, i) => (
-                    <li key={i} className="text-sm text-slate-300 flex gap-2">
-                      <span className="text-brand-400 shrink-0 font-medium">{i + 1}.</span> {s}
-                    </li>
+                <h3 className="text-lg font-semibold text-white mb-1">⭐ Bonus Skills in Your Resume</h3>
+                <p className="text-xs text-slate-500 mb-3">These skills are in your resume but not mentioned in the JD — extra value!</p>
+                <div className="flex flex-wrap gap-2">
+                  {result.bonusSkills.map((k) => <Badge key={k} color="blue">{k}</Badge>)}
+                </div>
+              </div>
+            )}
+
+            {/* Meta stats */}
+            {result.meta && (
+              <div className="card">
+                <h3 className="text-lg font-semibold text-white mb-3">📊 Match Statistics</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {[
+                    { label: 'Resume Terms', value: result.meta.resumeTermCount },
+                    { label: 'JD Terms',     value: result.meta.jobTermCount },
+                    { label: 'Overlap',      value: result.meta.overlapCount },
+                    { label: 'Overlap %',    value: `${Math.round(result.meta.overlapRatio * 100)}%` },
+                  ].map(({ label, value }) => (
+                    <div key={label} className="bg-slate-800/60 rounded-xl p-3 text-center">
+                      <div className="text-xl font-bold text-brand-400">{value}</div>
+                      <div className="text-xs text-slate-400 mt-0.5">{label}</div>
+                    </div>
                   ))}
-                </ul>
+                </div>
               </div>
             )}
 
