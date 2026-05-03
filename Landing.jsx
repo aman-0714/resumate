@@ -51,43 +51,25 @@ const CounterStat = ({ value, suffix, label }) => {
   );
 };
 
-// Each feature card now links to its actual route
+// Only 2 feature cards
 const features = [
   {
     icon: '📄',
     title: 'Resume Parsing',
-    desc: 'Upload your PDF resume and we instantly extract your skills, experience, education, and contact details.',
+    desc: 'Upload your PDF or DOCX resume and instantly extract your skills, experience, education, and contact details — structured and ready to optimize.',
     color: 'from-blue-500/10 to-blue-600/5',
     border: 'hover:border-blue-500/40',
     to: '/upload',
-    cta: 'Upload Resume →',
+    cta: 'Upload & Parse Resume',
   },
   {
-    icon: '🤖',
-    title: 'AI Analysis',
-    desc: 'Get a comprehensive ATS score, keyword match score, structure score, and personalized suggestions.',
+    icon: '✨',
+    title: 'AI Resume Rewrite',
+    desc: 'Get a comprehensive ATS score, keyword match score, structure score, and have AI instantly rewrite your resume with stronger verbs and impact-driven bullets.',
     color: 'from-purple-500/10 to-purple-600/5',
     border: 'hover:border-purple-500/40',
     to: '/upload',
-    cta: 'Analyze Resume →',
-  },
-  {
-    icon: '🎯',
-    title: 'Job Role Matching',
-    desc: 'Paste any job description and get a detailed match score showing exactly what you need to add.',
-    color: 'from-orange-500/10 to-orange-600/5',
-    border: 'hover:border-orange-500/40',
-    to: '/job-match',
-    cta: 'Try Job Match →',
-  },
-  {
-    icon: '🚀',
-    title: 'Career Guidance',
-    desc: 'Get curated course recommendations, project ideas, and career path guidance for your target role.',
-    color: 'from-green-500/10 to-green-600/5',
-    border: 'hover:border-green-500/40',
-    to: '/upload',
-    cta: 'Get Guidance →',
+    cta: 'Analyze & Rewrite Resume',
   },
 ];
 
@@ -96,7 +78,7 @@ const steps = [
     num: '01',
     icon: '⬆️',
     title: 'Upload Resume',
-    desc: 'Drag & drop your PDF or DOC resume. We parse it instantly — no account needed to start.',
+    desc: 'Drag & drop your PDF or DOC resume. We parse it instantly.',
   },
   {
     num: '02',
@@ -158,7 +140,7 @@ const Landing = () => {
             <span className="text-brand-400">with a Better Resume</span>
           </h1>
           <p className="text-xl text-slate-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-            Resumate analyzes your resume against ATS systems, matches it to job descriptions,
+            Resumate analyzes your resume against ATS systems, rewrites it with AI,
             and gives you actionable feedback to stand out from thousands of applicants.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -188,16 +170,16 @@ const Landing = () => {
             <p className="text-slate-400 text-sm uppercase tracking-widest font-medium mb-6">Sample Analysis Output</p>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-4">
               {[
-                { label: 'ATS Score', score: 87, barColor: 'bg-green-400', textColor: 'text-green-400' },
+                { label: 'ATS Score',     score: 87, barColor: 'bg-green-400',  textColor: 'text-green-400'  },
                 { label: 'Keyword Match', score: 74, barColor: 'bg-yellow-400', textColor: 'text-yellow-400' },
-                { label: 'Structure', score: 92, barColor: 'bg-green-400', textColor: 'text-green-400' },
-                { label: 'Overall', score: 83, barColor: 'bg-brand-400', textColor: 'text-brand-400' },
+                { label: 'Structure',     score: 92, barColor: 'bg-green-400',  textColor: 'text-green-400'  },
+                { label: 'Overall',       score: 83, barColor: 'bg-brand-400',  textColor: 'text-brand-400'  },
               ].map(({ label, score, barColor, textColor }) => (
                 <div key={label} className="flex flex-col items-center gap-1">
                   <div className={`text-4xl font-bold font-display ${textColor}`}>{score}</div>
                   <div className="text-xs text-slate-400 uppercase tracking-wide">{label}</div>
                   <div className="w-full h-1.5 bg-slate-800 rounded-full mt-1 overflow-hidden">
-                    <div className={`h-full rounded-full ${barColor} transition-all duration-1000`} style={{ width: `${score}%` }} />
+                    <div className={`h-full rounded-full ${barColor}`} style={{ width: `${score}%` }} />
                   </div>
                 </div>
               ))}
@@ -212,8 +194,8 @@ const Landing = () => {
         <div className="max-w-4xl mx-auto">
           <div className="grid grid-cols-3 gap-8">
             <CounterStat value={10000} suffix="+" label="Resumes Analyzed" />
-            <CounterStat value={85} suffix="%" label="Avg Score Improvement" />
-            <CounterStat value={3} suffix="x" label="More Interview Calls" />
+            <CounterStat value={85}    suffix="%" label="Avg Score Improvement" />
+            <CounterStat value={3}     suffix="x" label="More Interview Calls" />
           </div>
         </div>
       </section>
@@ -239,11 +221,11 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* Features — now fully clickable */}
+      {/* Features — 2 cards only */}
       <section className="py-20 px-4 border-y border-slate-800/50">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <h2 className="text-3xl md:text-4xl font-bold font-display text-white text-center mb-2">Everything You Need to Get Hired</h2>
-          <p className="text-slate-400 text-center mb-12 max-w-xl mx-auto">One platform to analyze, optimize, and match your resume to any job.</p>
+          <p className="text-slate-400 text-center mb-12 max-w-xl mx-auto">Upload once. Get parsed data, ATS score, and an AI-rewritten resume.</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {features.map((f) => (
               <Link
@@ -254,7 +236,7 @@ const Landing = () => {
                 <div className="text-3xl mb-4 group-hover:scale-110 transition-transform duration-200 inline-block">{f.icon}</div>
                 <h3 className="text-xl font-semibold text-white mb-2">{f.title}</h3>
                 <p className="text-slate-400 leading-relaxed mb-4">{f.desc}</p>
-                <span className="text-sm font-medium text-brand-400 group-hover:text-brand-300 transition-colors flex items-center gap-1">
+                <span className="text-sm font-medium text-brand-400 group-hover:text-brand-300 transition-colors inline-flex items-center gap-1">
                   {f.cta}
                   <span className="group-hover:translate-x-1 transition-transform inline-block">→</span>
                 </span>

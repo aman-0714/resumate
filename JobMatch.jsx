@@ -2,8 +2,15 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { resumeAPI, jobMatchAPI } from './src/api.js';
 
-const ScoreRing = ({ score, size = 100 }) => {
-  const r = (size / 2) - 8;
+// Normalise whatever score shape the backend returns into 0-100
+const normaliseScore = (result) => {
+  const raw = result?.matchScore ?? result?.score ?? result?.overallScore ?? 0;
+  // If it's already 0-100 range, use it directly; if it's 0-1 fraction, multiply
+  return raw > 1 ? Math.round(raw) : Math.round(raw * 100);
+};
+
+const ScoreRing = ({ score, size = 120 }) => {
+  const r = (size / 2) - 9;
   const circ = 2 * Math.PI * r;
   const pct = Math.min(Math.max(score, 0), 100);
   const offset = circ - (pct / 100) * circ;
@@ -14,21 +21,24 @@ const ScoreRing = ({ score, size = 100 }) => {
 
   return (
     <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#1e293b" strokeWidth="7" />
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#1e293b" strokeWidth="8" />
       <circle
         cx={size/2} cy={size/2} r={r}
-        fill="none"
-        stroke={color}
-        strokeWidth="7"
-        strokeDasharray={circ}
-        strokeDashoffset={offset}
+        fill="none" stroke={color} strokeWidth="8"
+        strokeDasharray={circ} strokeDashoffset={offset}
         strokeLinecap="round"
-        style={{ transition: 'stroke-dashoffset 0.8s ease' }}
+        style={{ transition: 'stroke-dashoffset 0.9s ease' }}
       />
       <text
         x="50%" y="50%"
         dominantBaseline="middle" textAnchor="middle"
-        style={{ fill: color, fontSize: size * 0.22, fontWeight: 700, transform: 'rotate(90deg)', transformOrigin: '50% 50%' }}
+        style={{
+          fill: color,
+          fontSize: size * 0.2,
+          fontWeight: 700,
+          transform: 'rotate(90deg)',
+          transformOrigin: '50% 50%',
+        }}
       >
         {pct}%
       </text>
@@ -53,17 +63,16 @@ const Badge = ({ children, color = 'slate' }) => {
 
 const JobMatch = () => {
   const navigate = useNavigate();
-  const [resumes, setResumes]         = useState([]);
-  const [selectedId, setSelectedId]   = useState('');
-  const [resumeText, setResumeText]   = useState('');
-  const [useText, setUseText]         = useState(false);
-  const [jobDesc, setJobDesc]         = useState('');
-  const [result, setResult]           = useState(null);
-  const [loading, setLoading]         = useState(false);
+  const [resumes, setResumes]               = useState([]);
+  const [selectedId, setSelectedId]         = useState('');
+  const [resumeText, setResumeText]         = useState('');
+  const [useText, setUseText]               = useState(false);
+  const [jobDesc, setJobDesc]               = useState('');
+  const [result, setResult]                 = useState(null);
+  const [loading, setLoading]               = useState(false);
   const [loadingResumes, setLoadingResumes] = useState(true);
-  const [error, setError]             = useState('');
+  const [error, setError]                   = useState('');
 
-  // Load user's uploaded resumes for the dropdown
   useEffect(() => {
     resumeAPI.getAll()
       .then(({ data }) => setResumes(data.resumes || []))
@@ -72,15 +81,16 @@ const JobMatch = () => {
   }, []);
 
   const handleMatch = async () => {
+    setError('');
     if (!jobDesc.trim()) { setError('Please paste a job description.'); return; }
-    if (!useText && !selectedId) { setError('Please select a resume or paste resume text.'); return; }
+    if (!useText && !selectedId) { setError('Please select a resume from the dropdown.'); return; }
     if (useText && !resumeText.trim()) { setError('Please paste your resume text.'); return; }
 
     setLoading(true);
-    setError('');
     setResult(null);
-
     try {
+      // When using a saved resume, send resumeId so the backend loads rawText from MongoDB.
+      // The route now has `protect` middleware so req.user will be available.
       const payload = useText
         ? { resumeText, jobDescription: jobDesc }
         : { resumeId: selectedId, jobDescription: jobDesc };
@@ -94,11 +104,18 @@ const JobMatch = () => {
     }
   };
 
+  const score = result ? normaliseScore(result) : 0;
+  const verdictLabel =
+    score >= 80 ? '✅ Strong Match' :
+    score >= 60 ? '⚡ Moderate Match' :
+    score >= 40 ? '⚠️ Weak Match' :
+    '❌ Poor Match';
+
   return (
     <div className="min-h-screen pt-24 pb-16 px-4">
       <div className="max-w-4xl mx-auto">
 
-        {/* Header */}
+        {/* Breadcrumb */}
         <div className="flex items-center gap-3 mb-6">
           <button
             onClick={() => navigate('/dashboard')}
@@ -120,38 +137,40 @@ const JobMatch = () => {
         {/* Input card */}
         <div className="card mb-6">
 
-          {/* Resume source toggle */}
-          <div className="flex items-center gap-2 mb-4">
+          {/* Toggle: saved resume vs paste text */}
+          <div className="flex items-center gap-2 mb-5">
             <button
-              onClick={() => setUseText(false)}
+              onClick={() => { setUseText(false); setError(''); }}
               className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-                !useText ? 'bg-brand-500/20 text-brand-400 border border-brand-500/40' : 'text-slate-400 hover:text-white bg-slate-800'
+                !useText
+                  ? 'bg-brand-500/20 text-brand-400 border border-brand-500/40'
+                  : 'text-slate-400 hover:text-white bg-slate-800 border border-slate-700'
               }`}
             >
               📄 My Uploaded Resumes
             </button>
             <button
-              onClick={() => setUseText(true)}
+              onClick={() => { setUseText(true); setError(''); }}
               className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-                useText ? 'bg-brand-500/20 text-brand-400 border border-brand-500/40' : 'text-slate-400 hover:text-white bg-slate-800'
+                useText
+                  ? 'bg-brand-500/20 text-brand-400 border border-brand-500/40'
+                  : 'text-slate-400 hover:text-white bg-slate-800 border border-slate-700'
               }`}
             >
               ✏️ Paste Resume Text
             </button>
           </div>
 
-          {/* Resume selector OR text area */}
+          {/* Resume input */}
           {!useText ? (
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Select Resume
-              </label>
+            <div className="mb-5">
+              <label className="block text-sm font-medium text-slate-300 mb-2">Select Resume</label>
               {loadingResumes ? (
-                <div className="text-slate-500 text-sm">Loading resumes...</div>
+                <div className="text-slate-500 text-sm py-2">Loading your resumes...</div>
               ) : resumes.length === 0 ? (
                 <div className="bg-slate-800/50 rounded-xl px-4 py-3 text-slate-400 text-sm">
                   No resumes uploaded yet.{' '}
-                  <button onClick={() => navigate('/upload')} className="text-brand-400 hover:underline">
+                  <button onClick={() => navigate('/upload')} className="text-brand-400 hover:underline font-medium">
                     Upload one first →
                   </button>
                 </div>
@@ -169,22 +188,20 @@ const JobMatch = () => {
               )}
             </div>
           ) : (
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Paste Resume Text
-              </label>
+            <div className="mb-5">
+              <label className="block text-sm font-medium text-slate-300 mb-2">Paste Resume Text</label>
               <textarea
                 value={resumeText}
                 onChange={(e) => setResumeText(e.target.value)}
-                rows={8}
-                placeholder="Paste your resume text here..."
+                rows={7}
+                placeholder="Paste your full resume text here..."
                 className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-brand-500 text-sm resize-y font-mono"
               />
             </div>
           )}
 
           {/* Job description */}
-          <div className="mb-4">
+          <div className="mb-5">
             <label className="block text-sm font-medium text-slate-300 mb-2">
               Job Description <span className="text-red-400">*</span>
             </label>
@@ -192,11 +209,11 @@ const JobMatch = () => {
               value={jobDesc}
               onChange={(e) => setJobDesc(e.target.value)}
               rows={10}
-              placeholder="Paste the full job description here — the more detail, the better the match analysis..."
+              placeholder="Paste the full job description here — include responsibilities, requirements, and skills..."
               className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-brand-500 text-sm resize-y"
             />
             <p className="text-xs text-slate-500 mt-1.5">
-              {jobDesc.trim().split(/\s+/).filter(Boolean).length} words pasted
+              {jobDesc.trim().split(/\s+/).filter(Boolean).length} words
             </p>
           </div>
 
@@ -209,50 +226,42 @@ const JobMatch = () => {
           <button
             onClick={handleMatch}
             disabled={loading}
-            className="btn-primary w-full flex items-center justify-center gap-2 py-3"
+            className="btn-primary w-full flex items-center justify-center gap-2 py-3 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {loading ? (
               <>
                 <span className="animate-spin inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full" />
                 Analyzing Match...
               </>
-            ) : (
-              '🎯 Analyze Match'
-            )}
+            ) : '🎯 Analyze Match'}
           </button>
         </div>
 
-        {/* Results */}
+        {/* ── Results ── */}
         {result && (
           <div className="space-y-4">
 
-            {/* Score header */}
+            {/* Score card */}
             <div className="card flex flex-col sm:flex-row items-center gap-6">
               <div className="shrink-0">
-                <ScoreRing score={Math.round((result.matchScore ?? result.score ?? 0) * 100) > 100
-                  ? Math.round(result.matchScore ?? result.score ?? 0)
-                  : Math.round((result.matchScore ?? result.score ?? 0) * 100) || Math.round(result.matchScore ?? result.score ?? 0)} size={120} />
+                <ScoreRing score={score} size={130} />
               </div>
               <div className="flex-1 text-center sm:text-left">
                 <h2 className="text-2xl font-bold text-white mb-1">
-                  {result.verdict || (
-                    (result.matchScore ?? result.score ?? 0) >= 0.7 ? '✅ Strong Match' :
-                    (result.matchScore ?? result.score ?? 0) >= 0.4 ? '⚡ Moderate Match' :
-                    '❌ Weak Match'
-                  )}
+                  {result.verdict || verdictLabel}
                 </h2>
                 {result.summary && (
-                  <p className="text-slate-400 text-sm leading-relaxed">{result.summary}</p>
+                  <p className="text-slate-400 text-sm leading-relaxed mb-3">{result.summary}</p>
                 )}
-                <div className="flex flex-wrap gap-3 mt-3 justify-center sm:justify-start">
-                  {result.matchedKeywords?.length != null && (
+                <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
+                  {result.matchedKeywords?.length > 0 && (
                     <span className="text-xs px-3 py-1 rounded-full bg-green-500/10 text-green-400 border border-green-500/20">
-                      ✓ {result.matchedKeywords.length} keywords matched
+                      ✓ {result.matchedKeywords.length} matched
                     </span>
                   )}
-                  {result.missingKeywords?.length != null && (
+                  {result.missingKeywords?.length > 0 && (
                     <span className="text-xs px-3 py-1 rounded-full bg-red-500/10 text-red-400 border border-red-500/20">
-                      ✗ {result.missingKeywords.length} keywords missing
+                      ✗ {result.missingKeywords.length} missing
                     </span>
                   )}
                 </div>
@@ -262,14 +271,12 @@ const JobMatch = () => {
             {/* Matched keywords */}
             {result.matchedKeywords?.length > 0 && (
               <div className="card">
-                <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-white mb-3">
                   ✅ Matched Keywords
-                  <span className="text-xs text-slate-500 font-normal ml-1">({result.matchedKeywords.length})</span>
+                  <span className="text-xs text-slate-500 font-normal ml-2">({result.matchedKeywords.length})</span>
                 </h3>
                 <div className="flex flex-wrap gap-2">
-                  {result.matchedKeywords.map((k) => (
-                    <Badge key={k} color="green">{k}</Badge>
-                  ))}
+                  {result.matchedKeywords.map((k) => <Badge key={k} color="green">{k}</Badge>)}
                 </div>
               </div>
             )}
@@ -277,14 +284,12 @@ const JobMatch = () => {
             {/* Missing keywords */}
             {result.missingKeywords?.length > 0 && (
               <div className="card">
-                <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-white mb-1">
                   ❌ Missing Keywords
-                  <span className="text-xs text-slate-500 font-normal ml-1">Add these to improve your match</span>
                 </h3>
+                <p className="text-xs text-slate-500 mb-3">Add these to your resume to improve your match score</p>
                 <div className="flex flex-wrap gap-2">
-                  {result.missingKeywords.map((k) => (
-                    <Badge key={k} color="red">{k}</Badge>
-                  ))}
+                  {result.missingKeywords.map((k) => <Badge key={k} color="red">{k}</Badge>)}
                 </div>
               </div>
             )}
@@ -296,20 +301,20 @@ const JobMatch = () => {
                 <ul className="space-y-2">
                   {result.suggestions.map((s, i) => (
                     <li key={i} className="text-sm text-slate-300 flex gap-2">
-                      <span className="text-brand-400 shrink-0">{i + 1}.</span> {s}
+                      <span className="text-brand-400 shrink-0 font-medium">{i + 1}.</span> {s}
                     </li>
                   ))}
                 </ul>
               </div>
             )}
 
-            {/* CTA to rewrite */}
+            {/* CTA to AI Rewriter */}
             {selectedId && (
               <div className="card border-brand-500/20 bg-brand-500/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
-                  <div className="font-semibold text-white mb-1">✨ Improve Your Resume with AI</div>
+                  <div className="font-semibold text-white mb-1">✨ Rewrite with AI to Close the Gap</div>
                   <p className="text-slate-400 text-sm">
-                    Automatically rewrite your resume to better match this job description.
+                    AI will optimise your resume specifically for this role — adding missing keywords and strengthening bullets.
                   </p>
                 </div>
                 <button
