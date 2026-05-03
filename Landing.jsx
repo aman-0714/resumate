@@ -51,6 +51,7 @@ const CounterStat = ({ value, suffix, label }) => {
   );
 };
 
+// Each feature card now links to its actual route
 const features = [
   {
     icon: '📄',
@@ -58,6 +59,8 @@ const features = [
     desc: 'Upload your PDF resume and we instantly extract your skills, experience, education, and contact details.',
     color: 'from-blue-500/10 to-blue-600/5',
     border: 'hover:border-blue-500/40',
+    to: '/upload',
+    cta: 'Upload Resume →',
   },
   {
     icon: '🤖',
@@ -65,6 +68,8 @@ const features = [
     desc: 'Get a comprehensive ATS score, keyword match score, structure score, and personalized suggestions.',
     color: 'from-purple-500/10 to-purple-600/5',
     border: 'hover:border-purple-500/40',
+    to: '/upload',
+    cta: 'Analyze Resume →',
   },
   {
     icon: '🎯',
@@ -72,6 +77,8 @@ const features = [
     desc: 'Paste any job description and get a detailed match score showing exactly what you need to add.',
     color: 'from-orange-500/10 to-orange-600/5',
     border: 'hover:border-orange-500/40',
+    to: '/job-match',
+    cta: 'Try Job Match →',
   },
   {
     icon: '🚀',
@@ -79,6 +86,8 @@ const features = [
     desc: 'Get curated course recommendations, project ideas, and career path guidance for your target role.',
     color: 'from-green-500/10 to-green-600/5',
     border: 'hover:border-green-500/40',
+    to: '/upload',
+    cta: 'Get Guidance →',
   },
 ];
 
@@ -198,7 +207,7 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* Stats Banner — Animated Counters */}
+      {/* Stats Banner */}
       <section className="py-14 px-4 bg-brand-500/5 border-y border-brand-500/10">
         <div className="max-w-4xl mx-auto">
           <div className="grid grid-cols-3 gap-8">
@@ -215,9 +224,8 @@ const Landing = () => {
           <h2 className="text-3xl md:text-4xl font-bold font-display text-white text-center mb-2">How It Works</h2>
           <p className="text-slate-400 text-center mb-16">Three simple steps to a better resume</p>
           <div className="relative grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* Connector line (desktop only) */}
             <div className="hidden md:block absolute top-8 left-[calc(16.67%+2rem)] right-[calc(16.67%+2rem)] h-px bg-gradient-to-r from-transparent via-brand-500/30 to-transparent" />
-            {steps.map((step, i) => (
+            {steps.map((step) => (
               <div key={step.num} className="flex flex-col items-center text-center relative">
                 <div className="w-16 h-16 rounded-2xl bg-brand-500/10 border border-brand-500/30 flex items-center justify-center mb-4 relative z-10">
                   <span className="text-2xl">{step.icon}</span>
@@ -231,18 +239,26 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* Features */}
+      {/* Features — now fully clickable */}
       <section className="py-20 px-4 border-y border-slate-800/50">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-3xl md:text-4xl font-bold font-display text-white text-center mb-2">Everything You Need to Get Hired</h2>
           <p className="text-slate-400 text-center mb-12 max-w-xl mx-auto">One platform to analyze, optimize, and match your resume to any job.</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {features.map((f) => (
-              <div key={f.title} className={`card bg-gradient-to-br ${f.color} ${f.border} transition-all duration-300 group`}>
+              <Link
+                key={f.title}
+                to={user ? f.to : '/signup'}
+                className={`card bg-gradient-to-br ${f.color} ${f.border} transition-all duration-300 group cursor-pointer block hover:scale-[1.02] hover:shadow-lg hover:shadow-black/20`}
+              >
                 <div className="text-3xl mb-4 group-hover:scale-110 transition-transform duration-200 inline-block">{f.icon}</div>
                 <h3 className="text-xl font-semibold text-white mb-2">{f.title}</h3>
-                <p className="text-slate-400 leading-relaxed">{f.desc}</p>
-              </div>
+                <p className="text-slate-400 leading-relaxed mb-4">{f.desc}</p>
+                <span className="text-sm font-medium text-brand-400 group-hover:text-brand-300 transition-colors flex items-center gap-1">
+                  {f.cta}
+                  <span className="group-hover:translate-x-1 transition-transform inline-block">→</span>
+                </span>
+              </Link>
             ))}
           </div>
         </div>
@@ -258,7 +274,6 @@ const Landing = () => {
               <div key={t.name} className="card hover:border-slate-600 transition-all duration-200 flex flex-col">
                 <div className="text-brand-400 text-2xl mb-3">❝</div>
                 <p className="text-slate-300 text-sm leading-relaxed mb-5 flex-1">"{t.text}"</p>
-                {/* Before / After score pill */}
                 <div className="flex items-center gap-2 mb-4">
                   <span className="text-xs px-2.5 py-1 rounded-full bg-red-500/10 text-red-400 font-medium">
                     Before: {t.score.before}
