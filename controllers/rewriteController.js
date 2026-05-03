@@ -1,30 +1,27 @@
 // controllers/rewriteController.js
-// AI-powered resume rewriter using HuggingFace Mistral (free tier)
-// Rewrites the user's resume for a specific job role without changing facts.
+// AI-powered resume rewriter using Anthropic Claude API
 'use strict';
 
 const Resume = require('../models/Resume');
 const { JOB_ROLE_KEYWORDS, normalizeJobRole } = require('../utils/aiScorer');
 
-// ─── Weak → Strong verb substitution map ─────────────────────────────────────
+// ─── Rule-based fallback (used only if Claude API key is missing) ─────────────
 const VERB_MAP = {
-  'worked on':         'Developed',
-  'worked with':       'Collaborated on',
-  'worked':            'Executed',
-  'helped':            'Supported',
-  'assisted':          'Collaborated on',
+  'worked on':           'Developed',
+  'worked with':         'Collaborated on',
+  'worked':              'Executed',
+  'helped':              'Supported',
+  'assisted':            'Collaborated on',
   'was responsible for': 'Managed',
-  'was involved in':   'Contributed to',
-  'involved in':       'Contributed to',
-  'did':               'Executed',
-  'made':              'Produced',
-  'tried':             'Implemented',
-  'got':               'Achieved',
-  'handled':           'Managed',
-  'did work':          'Executed',
+  'was involved in':     'Contributed to',
+  'involved in':         'Contributed to',
+  'did':                 'Executed',
+  'made':                'Produced',
+  'tried':               'Implemented',
+  'got':                 'Achieved',
+  'handled':             'Managed',
 };
 
-// ─── Rule-based local rewriter (fallback if HF is unavailable) ───────────────
 const ruleBasedRewrite = (rawText, parsedData, effectiveRole) => {
   const lines = rawText.split('\n');
   const roleData = JOB_ROLE_KEYWORDS[effectiveRole];
@@ -34,134 +31,130 @@ const ruleBasedRewrite = (rawText, parsedData, effectiveRole) => {
   const rewritten = lines.map(line => {
     const trimmed = line.trim();
     if (!trimmed) return line;
-
-    // Replace bullet weak verbs
     if (/^[\•\-\*▪►◆▸·–]\s+/i.test(trimmed) || /^\d+[\.\)]\s+/i.test(trimmed)) {
       let content = trimmed.replace(/^[\•\-\*▪►◆▸·–\d\.\)]\s*/, '');
       content = content.replace(/^I\s+(am|was|have|worked|helped|built|led)\b\s*/i, '');
       for (const [weak, strong] of Object.entries(VERB_MAP)) {
         const re = new RegExp(`^${weak}\\b`, 'i');
-        if (re.test(content)) {
-          content = content.replace(re, strong);
-          break;
-        }
+        if (re.test(content)) { content = content.replace(re, strong); break; }
       }
       return '• ' + content.charAt(0).toUpperCase() + content.slice(1);
     }
-
     return line;
   });
 
-  // Prepend summary if missing
   const hasSummary = /\b(summary|objective|profile|about)\b/i.test(rawText);
   if (!hasSummary) {
     const summary = [
-      '',
-      'PROFESSIONAL SUMMARY',
-      '─────────────────────',
+      '', 'PROFESSIONAL SUMMARY', '─────────────────────',
       `Results-driven ${roleTitle} with hands-on experience in ${topSkills}.`,
       `Passionate about delivering high-quality solutions and driving measurable impact.`,
-      `Seeking a ${roleTitle} role to apply technical expertise and contribute to team success.`,
-      '',
+      `Seeking a ${roleTitle} role to apply technical expertise and contribute to team success.`, '',
     ].join('\n');
     rewritten.unshift(summary);
   }
-
   return rewritten.join('\n');
 };
 
-// ─── HuggingFace AI rewrite ───────────────────────────────────────────────────
-const hfRewrite = async (rawText, parsedData, effectiveRole) => {
-  const apiKey = process.env.HF_API_KEY;
-  if (!apiKey || apiKey === 'your_hf_api_key_here') {
-    console.warn('[Rewriter] HF_API_KEY not set — using rule-based rewriter.');
+// ─── Claude (Anthropic) AI rewrite ───────────────────────────────────────────
+const claudeRewrite = async (rawText, parsedData, effectiveRole) => {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey || apiKey === 'your_anthropic_api_key_here') {
+    console.warn('[Rewriter] ANTHROPIC_API_KEY not set — using rule-based fallback.');
     return null;
   }
 
-  const roleData  = JOB_ROLE_KEYWORDS[effectiveRole];
-  const roleTitle = roleData?.title || (effectiveRole ? effectiveRole.replace(/-/g, ' ') : 'a professional role');
+  const roleData     = JOB_ROLE_KEYWORDS[effectiveRole];
+  const roleTitle    = roleData?.title || (effectiveRole ? effectiveRole.replace(/-/g, ' ') : 'a professional role');
   const roleKeywords = roleData
-    ? [...roleData.required, ...roleData.preferred].slice(0, 10).join(', ')
+    ? [...(roleData.required || []), ...(roleData.preferred || [])].slice(0, 12).join(', ')
     : 'relevant industry skills';
 
-  const systemPrompt = `You are a professional resume writer and ATS optimization expert.
-Your task is to improve the given resume.
+  const systemPrompt = `You are an expert resume writer and ATS optimization specialist with 15+ years of experience helping candidates land jobs at top companies.
 
-IMPORTANT RULES:
-- Do NOT change the person's facts, education, or experience.
-- Do NOT add fake information, fake companies, fake degrees, or fake projects.
-- Do NOT invent metrics — only add numbers if they can be reasonably inferred.
-- Only rewrite and improve existing content.
+Your job is to SUBSTANTIALLY improve the given resume for a ${roleTitle} role. You must make REAL, MEANINGFUL changes — not cosmetic ones.
 
-GOALS:
-1. Replace weak verbs (like "worked", "assisted") with strong action verbs (Spearheaded, Engineered, Optimized).
-2. Add missing industry-relevant keywords naturally for ATS — focus on: ${roleKeywords}.
-3. Improve bullet points to be impact-driven and results-oriented.
-4. Keep sentences concise and professional (each bullet under 20 words).
-5. Ensure proper resume structure: Summary, Skills, Experience, Projects, Education.
-6. Remove first-person pronouns (I, my, me).
+═══════════════════════════════════════
+WHAT YOU MUST DO (ALL of these):
+═══════════════════════════════════════
 
-STYLE:
-- Use bullet points starting with strong action verbs for experience and projects.
-- Keep tone professional and human-like.
-- Maintain clean formatting.
+1. PROFILE / SUMMARY
+   - Write a compelling 3-4 sentence professional summary that highlights the candidate's strongest value proposition for ${roleTitle}.
+   - Make it specific to their actual background, not generic.
 
-Return ONLY the improved resume text. No explanations, no markdown fences, no commentary.`;
+2. EDUCATION
+   - Keep all existing education entries.
+   - If percentage/CGPA is present, keep it. If secondary/high school details exist, include them with grades.
+   - Format clearly with institution, degree, dates, and scores.
 
-  const prompt = `<s>[INST] ${systemPrompt}
+3. SKILLS SECTION
+   - Expand and restructure into categorized rows: Languages, Frameworks & Libraries, Tools & Platforms, Concepts.
+   - Add ATS-critical keywords for ${roleTitle}: ${roleKeywords}.
+   - Only add skills that are plausible given their existing profile — do NOT fabricate.
 
-TARGET ROLE: ${roleTitle}
+4. EXPERIENCE / PROJECTS (most important section)
+   - Rewrite EVERY bullet point to start with a strong action verb (Engineered, Architected, Spearheaded, Optimized, Automated, Deployed, Integrated, etc.).
+   - Add quantified impact wherever reasonably inferable (e.g., "reducing load time by X%", "improving accuracy to X%").
+   - Add tech stack details to each project/experience if not already there.
+   - If the project bullets are vague, make them specific and technical.
+   - Expand thin bullet points into 2-3 strong bullets.
 
-RESUME TO IMPROVE:
-${rawText.slice(0, 3000)}
-[/INST]</s>`;
+5. ACHIEVEMENTS / CERTIFICATIONS
+   - Keep all existing ones.
+   - Format them clearly as bullet points.
+
+═══════════════════════════════════════
+STRICT RULES:
+═══════════════════════════════════════
+- Do NOT invent fake companies, fake degrees, or fake job titles.
+- Do NOT change the person's real name, contact info, or actual work history.
+- Do NOT add fake metrics you cannot reasonably infer.
+- Remove all first-person pronouns (I, my, me, we).
+- Use clean plain-text formatting (no markdown, no asterisks, no bold/italic markers).
+- Sections must be in this order: Name/Contact, Profile, Education, Skills, Projects/Experience, Achievements.
+
+Return ONLY the improved resume text. No commentary, no explanations, no code fences.`;
 
   try {
-    const response = await fetch(
-      'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2',
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type':  'application/json',
-        },
-        body: JSON.stringify({
-          inputs: prompt,
-          parameters: {
-            max_new_tokens:   1200,
-            temperature:      0.4,
-            return_full_text: false,
-            stop:             ['</s>', '[INST]'],
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key':         apiKey,
+        'anthropic-version': '2023-06-01',
+        'content-type':      'application/json',
+      },
+      body: JSON.stringify({
+        model:      'claude-sonnet-4-6',
+        max_tokens: 4096,
+        system:     systemPrompt,
+        messages: [
+          {
+            role:    'user',
+            content: `TARGET ROLE: ${roleTitle}\n\nRESUME TO IMPROVE:\n${rawText}`,
           },
-        }),
-      }
-    );
+        ],
+      }),
+    });
 
     if (!response.ok) {
       const errText = await response.text();
-      if (response.status === 503) {
-        console.warn('[Rewriter] HF model warming up (503) — falling back to rule-based rewriter.');
-      } else {
-        console.error('[Rewriter] HF API error:', response.status, errText);
-      }
+      console.error('[Rewriter] Claude API error:', response.status, errText);
       return null;
     }
 
     const data = await response.json();
-    const text = Array.isArray(data)
-      ? (data[0]?.generated_text || '')
-      : (data?.generated_text || '');
+    const text = data?.content?.[0]?.text || '';
 
     if (!text || text.trim().length < 100) {
-      console.warn('[Rewriter] HF returned empty/short text — falling back to rule-based.');
+      console.warn('[Rewriter] Claude returned empty/short text — falling back to rule-based.');
       return null;
     }
 
-    console.log('[Rewriter] ✅ HF AI rewrite successful');
+    console.log('[Rewriter] ✅ Claude AI rewrite successful');
     return text.trim();
 
   } catch (err) {
-    console.error('[Rewriter] HF error:', err.message);
+    console.error('[Rewriter] Claude error:', err.message);
     return null;
   }
 };
@@ -174,7 +167,7 @@ const rewriteResume = async (req, res) => {
     const { jobRole } = req.body;
 
     const resume = await Resume.findOne({
-      _id: req.params.resumeId,
+      _id:  req.params.resumeId,
       user: req.user._id,
     });
 
@@ -188,7 +181,6 @@ const rewriteResume = async (req, res) => {
       });
     }
 
-    // Normalize job role — fall back to what was used during analysis
     const normalizedRole = normalizeJobRole(jobRole)
       || normalizeJobRole(resume.analysis?.selectedJobRole)
       || null;
@@ -199,10 +191,10 @@ const rewriteResume = async (req, res) => {
 
     console.log(`[Rewriter] Rewriting for role: ${effectiveRole || 'auto'} — resume: ${resume._id}`);
 
-    // Try AI first, fall back to rule-based
-    const aiText   = await hfRewrite(resume.rawText, resume.parsedData, effectiveRole);
+    // Try Claude first, fall back to rule-based
+    const aiText        = await claudeRewrite(resume.rawText, resume.parsedData, effectiveRole);
     const rewrittenText = aiText || ruleBasedRewrite(resume.rawText, resume.parsedData, effectiveRole);
-    const method   = aiText ? 'ai' : 'rule-based';
+    const method        = aiText ? 'ai' : 'rule-based';
 
     return res.json({
       success:       true,
@@ -211,9 +203,9 @@ const rewriteResume = async (req, res) => {
       roleTitle,
       originalText:  resume.rawText,
       rewrittenText,
-      message:       aiText
-        ? `Resume optimized for ${roleTitle} using AI.`
-        : `Resume improved for ${roleTitle} using smart rule-based rewriting. Set HF_API_KEY for AI-powered rewrites.`,
+      message: aiText
+        ? `Resume optimized for ${roleTitle} using Claude AI.`
+        : `Resume improved for ${roleTitle} using rule-based rewriting. Add ANTHROPIC_API_KEY to .env for AI-powered rewrites.`,
     });
 
   } catch (err) {
