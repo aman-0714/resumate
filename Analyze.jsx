@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { resumeAPI, analyzeAPI } from './src/api.js';
 import ScoreGauge from './ScoreGauge.jsx';
 
@@ -60,7 +60,7 @@ const Analyze = () => {
       try {
         const { data } = await resumeAPI.getById(resumeId);
         setResume(data.resume);
-        if (data.resume?.analysis?.overallScore > 0) {
+        if (data.resume?.analysis?.score > 0) {
           setAnalysis(data.resume.analysis);
           setJobRole(data.resume.analysis.selectedJobRole || '');
         }
@@ -117,11 +117,22 @@ const Analyze = () => {
 
         {/* Job Role + Trigger */}
         <div className="card mb-6">
-          <h2 className="text-xl font-bold text-white mb-1">Analyze Resume</h2>
-          <p className="text-slate-400 text-sm mb-4">
-            Select a target job role for precise keyword matching, or leave blank for auto-detection.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex items-start justify-between gap-4 mb-1">
+            <div>
+              <h2 className="text-xl font-bold text-white">Analyze Resume</h2>
+              <p className="text-slate-400 text-sm mt-1">
+                Select a target job role for precise keyword matching, or leave blank for auto-detection.
+              </p>
+            </div>
+            {/* AI Rewriter CTA */}
+            <Link
+              to={`/rewrite/${resumeId}`}
+              className="shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-500/10 hover:bg-brand-500/20 text-brand-400 text-sm font-medium transition-colors border border-brand-500/30"
+            >
+              ✨ AI Rewrite
+            </Link>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3 mt-4">
             <select
               value={jobRole}
               onChange={(e) => setJobRole(e.target.value)}
@@ -154,17 +165,17 @@ const Analyze = () => {
             {/* Score Overview */}
             <div className="card mb-4">
               <div className="flex flex-col sm:flex-row items-center gap-6">
-                <ScoreGauge score={a.overallScore ?? a.score ?? 0} label="Overall Score" size={140} />
+                <ScoreGauge score={a.score ?? a.overallScore ?? 0} label="Overall Score" size={140} />
                 <div className="flex-1 w-full">
                   {a.summary && <p className="text-slate-300 text-sm mb-4">{a.summary}</p>}
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {[
-                      { label: 'ATS Score',     value: a.ats?.score,                  unit: '/10' },
-                      { label: 'Keywords',      value: a.keywords?.score,             unit: '/10' },
-                      { label: 'Grammar',       value: a.grammar?.score,              unit: '/10' },
-                      { label: 'Word Count',    value: a.metrics?.wordCount,          unit: '' },
+                      { label: 'ATS Score',     value: a.ats?.score,                    unit: '/100' },
+                      { label: 'Keywords',      value: a.keywords?.score,               unit: '/100' },
+                      { label: 'Grammar',       value: a.grammar?.score,                unit: '/10' },
+                      { label: 'Word Count',    value: a.metrics?.wordCount,            unit: '' },
                       { label: 'Bullet Points', value: a.formatting?.totalBulletPoints, unit: '' },
-                      { label: 'Keyword Match', value: a.keywords?.matchPercentage,   unit: '%' },
+                      { label: 'Keyword Match', value: a.keywords?.matchPercentage,     unit: '%' },
                     ].map(({ label, value, unit }) => (
                       <div key={label} className="bg-slate-800/60 rounded-xl p-3 text-center">
                         <div className="text-2xl font-bold text-brand-400">{value ?? 0}{unit}</div>
@@ -179,6 +190,22 @@ const Analyze = () => {
                   )}
                 </div>
               </div>
+            </div>
+
+            {/* AI Rewrite CTA banner */}
+            <div className="card mb-4 border-brand-500/20 bg-brand-500/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <div className="font-semibold text-white mb-1">✨ Improve This Resume with AI</div>
+                <p className="text-slate-400 text-sm">
+                  Automatically rewrite your resume with stronger verbs, ATS keywords, and impact-driven bullets.
+                </p>
+              </div>
+              <Link
+                to={`/rewrite/${resumeId}`}
+                className="btn-primary whitespace-nowrap shrink-0"
+              >
+                Open AI Rewriter →
+              </Link>
             </div>
 
             {/* ATS */}

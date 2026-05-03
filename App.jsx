@@ -7,6 +7,7 @@ import Signup from './Signup.jsx';
 import Dashboard from './Dashboard.jsx';
 import Upload from './Upload.jsx';
 import Analyze from './Analyze.jsx';
+import ResumeRewriter from './ResumeRewriter.jsx';
 
 // Protect routes that require login
 const PrivateRoute = ({ children }) => {
@@ -27,11 +28,12 @@ const AppRoutes = () => (
     <Navbar />
     <Routes>
       <Route path="/" element={<Landing />} />
-      <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+      <Route path="/login"  element={<PublicRoute><Login /></PublicRoute>} />
       <Route path="/signup" element={<PublicRoute><Signup /></PublicRoute>} />
       <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
-      <Route path="/upload" element={<PrivateRoute><Upload /></PrivateRoute>} />
+      <Route path="/upload"    element={<PrivateRoute><Upload /></PrivateRoute>} />
       <Route path="/analyze/:resumeId" element={<PrivateRoute><Analyze /></PrivateRoute>} />
+      <Route path="/rewrite/:resumeId" element={<PrivateRoute><ResumeRewriter /></PrivateRoute>} />
       {/* Catch-all */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

@@ -51,6 +51,11 @@ export const analyzeAPI = {
   getJobRoles:  ()               => api.get('/analyze/job-roles'),
 };
 
+// ─── Resume Rewriter ──────────────────────────────────────────────────────────
+export const rewriteAPI = {
+  rewrite: (resumeId, data) => api.post(`/rewrite/${resumeId}`, data),
+};
+
 // ─── Career ───────────────────────────────────────────────────────────────────
 export const careerAPI = {
   getGuidance: (resumeId, data) => api.post(`/career/${resumeId}`, data),
