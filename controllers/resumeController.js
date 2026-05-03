@@ -9,7 +9,7 @@ const uploadResume = async (req, res) => {
     if (!req.file) return res.status(400).json({ success: false, message: 'No file uploaded.' });
 
     const fileExt = path.extname(req.file.originalname).toLowerCase().replace('.', '');
-    const { rawText, parsedData } = await parseResume(req.file.path, fileExt);
+    const { rawText, parsedData, meta } = await parseResume(req.file.path, fileExt);
 
     const resume = await Resume.create({
       user: req.user._id,
@@ -31,6 +31,7 @@ const uploadResume = async (req, res) => {
         parsedData: resume.parsedData,
         createdAt: resume.createdAt,
       },
+      meta,   // confidenceScore, confidenceBreakdown, llmUsed, ocrUsed
     });
   } catch (error) {
     console.error('Upload error:', error.message);

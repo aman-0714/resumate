@@ -6,6 +6,7 @@ import Login from './Login.jsx';
 import Signup from './Signup.jsx';
 import Dashboard from './Dashboard.jsx';
 import Upload from './Upload.jsx';
+import Analyze from './Analyze.jsx';
 
 // Protect routes that require login
 const PrivateRoute = ({ children }) => {
@@ -30,6 +31,7 @@ const AppRoutes = () => (
       <Route path="/signup" element={<PublicRoute><Signup /></PublicRoute>} />
       <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
       <Route path="/upload" element={<PrivateRoute><Upload /></PrivateRoute>} />
+      <Route path="/analyze/:resumeId" element={<PrivateRoute><Analyze /></PrivateRoute>} />
       {/* Catch-all */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
