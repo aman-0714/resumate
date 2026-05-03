@@ -42,6 +42,7 @@ export const resumeAPI = {
   getAll:      ()   => api.get('/resume/my-resumes'),
   getById:     (id) => api.get(`/resume/${id}`),
   deleteById:  (id) => api.delete(`/resume/${id}`),
+  autoFix:     (id) => api.post(`/resume/${id}/auto-fix`),
 };
 
 // ─── Analysis ─────────────────────────────────────────────────────────────────

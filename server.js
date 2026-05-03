@@ -49,6 +49,7 @@ app.use('/api/resume',    require('./routes/resumeRoutes'));
 app.use('/api/analyze',   require('./routes/analyzeRoutes'));
 app.use('/api/career',    require('./routes/careerRoutes'));
 app.use('/api/job-match', require('./routes/jobMatchRoutes'));
+app.use('/api/resume',    require('./routes/autoFixRoutes'));   // auto-fix (nested under /api/resume/:id/auto-fix)
 
 // ─── Root Route ───────────────────────────────────────────────────────────────
 app.get('/', (req, res) => {
