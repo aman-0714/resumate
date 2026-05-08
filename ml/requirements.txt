@@ -1,0 +1,18 @@
+# ML Dependencies for Resumate
+# Install: pip install -r requirements.txt
+
+# Core ML
+scikit-learn>=1.3.0
+numpy>=1.24.0
+
+# PDF extraction (try multiple, use what's available)
+pdfplumber>=0.10.0
+PyMuPDF>=1.23.0       # fitz
+pdfminer.six>=20221105
+
+# Data
+pandas>=2.0.0
+
+# skill_gap module — pure Python stdlib only (no extra installs needed)
+# extractor.py, gap_detector.py, suggester.py, skill_taxonomy.py
+# use only: re, json, sys, os, collections — all built-in
