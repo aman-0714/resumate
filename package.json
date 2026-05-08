@@ -2,15 +2,12 @@
   "name": "resumate",
   "version": "1.0.0",
   "description": "AI-Powered Resume Optimization",
-  "main": "server.js",
+  "main": "server/server.js",
   "scripts": {
- 
-  "start": "node server/server.js",
-  "dev:server": "nodemon server/server.js",
-  "dev:client": "vite --config client/vite.config.js",
-  "build": "vite build --config client/vite.config.js"
-
-   
+    "start": "node server/server.js",
+    "dev:server": "nodemon server/server.js",
+    "dev:client": "vite --config client/vite.config.js",
+    "build": "vite build --config client/vite.config.js"
   },
   "dependencies": {
     "axios": "^1.6.2",
