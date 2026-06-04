@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { resumeAPI, analyzeAPI } from './src/api.js';
+import { apiGetMyResumes, apiAnalyzeResume, apiDeleteResume } from '../api.js';
+const resumeAPI = { getById: async (id) => { const r = await fetch(`https://resumate-ns85.onrender.com/api/resume/${id}`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' } }); const d = await r.json(); return { data: d }; } };
+const analyzeAPI = { analyze: async (id, body) => { const r = await fetch(`https://resumate-ns85.onrender.com/api/analyze/${id}`, { method: 'POST', headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); const d = await r.json(); return { data: d }; } };
 import ScoreGauge from './ScoreGauge.jsx';
 
 const JOB_ROLES = [

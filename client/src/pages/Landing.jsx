@@ -26,6 +26,7 @@ export default function Landing() {
         <div className="flex gap-4 justify-center flex-wrap">
           <Link to="/signup" className="btn-primary text-base">Analyze My Resume →</Link>
           <Link to="/login"  className="border border-slate-700 hover:border-slate-500 text-slate-300 px-6 py-3 rounded-xl transition-colors">Sign In</Link>
+          <Link to="/nitj-benchmark" className="border border-green-500/30 hover:border-green-500/60 text-green-400 px-6 py-3 rounded-xl transition-colors text-sm font-medium">🎓 NITJ Benchmark</Link>
         </div>
       </div>
 

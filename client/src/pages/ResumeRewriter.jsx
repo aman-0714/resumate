@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { resumeAPI, rewriteAPI } from './src/api.js';
+import { apiGetMyResumes } from '../api.js';
+const BASE = 'https://resumate-ns85.onrender.com';
+const h = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' });
+const resumeAPI = { getAll: apiGetMyResumes, getById: async (id) => { const r = await fetch(`${BASE}/api/resume/${id}`, { headers: h() }); return { data: await r.json() }; } };
+const rewriteAPI = { rewrite: async (id, body) => { const r = await fetch(`${BASE}/api/rewrite/${id}`, { method: 'POST', headers: h(), body: JSON.stringify(body) }); return { data: await r.json() }; }, downloadPDF: async (id, body) => { const r = await fetch(`${BASE}/api/rewrite/${id}/pdf`, { method: 'POST', headers: h(), body: JSON.stringify(body) }); return r; } };
 
 const JOB_ROLES = [
   { key: 'SOFTWARE-ENGINEERING',   title: 'Software Engineering' },

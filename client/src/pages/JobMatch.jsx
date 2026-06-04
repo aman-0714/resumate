@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { resumeAPI, jobMatchAPI } from './src/api.js';
+import { apiGetMyResumes, apiJobMatch } from '../api.js';
+const BASE = 'https://resumate-ns85.onrender.com';
+const h = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' });
+const resumeAPI = { getAll: apiGetMyResumes };
+const jobMatchAPI = { match: async (body) => { const r = await fetch(`${BASE}/api/job-match`, { method: 'POST', headers: h(), body: JSON.stringify(body) }); return { data: await r.json() }; } };
 
 // Normalise score — backend returns matchScore 0-100
 const normaliseScore = (result) => {

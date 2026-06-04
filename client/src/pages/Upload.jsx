@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { resumeAPI } from './src/api.js';
+import { apiUploadResume } from '../api.js';
+const resumeAPI = { upload: apiUploadResume };
 
 const Upload = () => {
   const navigate = useNavigate();
