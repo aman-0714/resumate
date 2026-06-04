@@ -25,7 +25,7 @@ app.use(morgan('dev'));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
-app.use('/api/auth',      require('./routes/authRoutes'));
+app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/resume',    require('./routes/resumeRoutes'));
 app.use('/api/analyze',   require('./routes/analyzeRoutes'));
 app.use('/api/career',    require('./routes/careerRoutes'));
