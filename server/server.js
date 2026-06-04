@@ -30,7 +30,10 @@ app.use('/api/resume',    require('./routes/resumeRoutes'));
 app.use('/api/analyze',   require('./routes/analyzeRoutes'));
 app.use('/api/career',    require('./routes/careerRoutes'));
 app.use('/api/job-match', require('./routes/jobMatchRoutes'));   // ← NLP matcher
-app.use('/api/ml',        require('./routes/mlRoutes'));          // ← ML models
+app.use('/api/ml',         require('./routes/mlRoutes'));          // ← ML models
+app.use('/api/rewrite',    require('./routes/rewriteRoutes'));      // ← AI rewrite
+app.use('/api/auto-fix',   require('./routes/autoFixRoutes'));      // ← auto fix
+app.use('/api/jd-analyze', require('./routes/jdAnalyzeRoutes'));    // ← JD analyze
 
 
 // ─── ATS Quick Analyze (no auth, for standalone ATS page) ─────────────────────

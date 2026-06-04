@@ -40,8 +40,9 @@ const Upload = () => {
     try {
       const formData = new FormData();
       formData.append('resume', file);
-      const { data } = await resumeAPI.upload(formData);
-      navigate(`/rewrite/${data.resume.id}`);
+      const data = await resumeAPI.upload(formData);
+      const resumeId = data?.resume?._id || data?.resume?.id;
+      navigate(`/analyze/${resumeId}`);
     } catch (err) {
       setError(err.response?.data?.message || 'Upload failed. Please try again.');
     } finally {

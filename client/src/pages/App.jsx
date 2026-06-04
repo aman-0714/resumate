@@ -3,7 +3,7 @@ import { useAuth } from './AuthContext';
 import {
   apiUploadResume, apiGetMyResumes, apiAnalyzeResume,
   apiGetCareerGuidance, apiGetJobRoles, apiJobMatch, apiDeleteResume,
-} from './src/api';
+} from '../api';
 
 export default function App() {
   const { user, login, signup, logout } = useAuth();
